@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const crypto = require('crypto');
 const { verifyNotification } = require('./midtransService');
 const { Transaction, Product, TemporaryRole, ModerationLog } = require('../database/models');
 const { createSuccessEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
@@ -33,6 +34,31 @@ function startWebhookServer(client) {
   app.post('/webhook/midtrans', async (req, res) => {
     try {
       console.log('📥 Received Midtrans webhook notification');
+
+      // Verify Midtrans signature
+      const {
+        order_id,
+        status_code,
+        gross_amount,
+        signature_key
+      } = req.body;
+
+      // Create hash for signature verification
+      const serverKey = process.env.MIDTRANS_SERVER_KEY;
+      const hash = crypto
+        .createHash('sha512')
+        .update(`${order_id}${status_code}${gross_amount}${serverKey}`)
+        .digest('hex');
+
+      // Verify signature
+      if (hash !== signature_key) {
+        console.error('❌ Invalid signature - possible fraud attempt');
+        console.log('Expected:', hash);
+        console.log('Received:', signature_key);
+        return res.status(403).json({ error: 'Invalid signature' });
+      }
+
+      console.log('✅ Signature verified');
 
       // Verify notification
       const notification = verifyNotification(req.body);

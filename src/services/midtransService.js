@@ -16,7 +16,7 @@ const snap = new midtransClient.Snap({
 });
 
 /**
- * Create payment transaction with QRIS - using Snap API only
+ * Create payment transaction with QRIS - using Core API for direct QRIS
  * @param {Object} params - Transaction parameters
  * @param {string} params.orderId - Unique order ID
  * @param {number} params.amount - Amount in IDR
@@ -26,39 +26,64 @@ const snap = new midtransClient.Snap({
  */
 async function createTransaction({ orderId, amount, customerDetails, itemDetails }) {
   try {
-    // Create Snap transaction (allow all available payment methods in sandbox)
+    // Create QRIS transaction using Core API for direct QR code
+    const chargeParameter = {
+      payment_type: 'qris',
+      transaction_details: {
+        order_id: orderId,
+        gross_amount: amount
+      },
+      customer_details: customerDetails,
+      item_details: itemDetails
+    };
+
+    const qrisTransaction = await core.charge(chargeParameter);
+
+    // Generate QR Code from QRIS string
+    let qrCodeBuffer = null;
+    let qrisString = null;
+
+    if (qrisTransaction.actions && qrisTransaction.actions.length > 0) {
+      // Get QRIS string from actions
+      const qrisAction = qrisTransaction.actions.find(action => action.name === 'generate-qr-code');
+      if (qrisAction && qrisAction.url) {
+        qrisString = qrisAction.url;
+
+        // Generate QR code image from QRIS string
+        qrCodeBuffer = await QRCode.toBuffer(qrisString, {
+          width: 400,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        });
+      }
+    }
+
+    // Also create Snap transaction for payment link (as backup option)
     const snapParameter = {
       transaction_details: {
         order_id: orderId,
         gross_amount: amount
       },
       customer_details: customerDetails,
-      item_details: itemDetails,
-      // Don't restrict payment methods - let Midtrans show what's available
+      item_details: itemDetails
     };
 
     const snapTransaction = await snap.createTransaction(snapParameter);
 
-    // Generate QR Code from payment URL for quick access
-    let qrCodeBuffer = null;
-    if (snapTransaction.redirect_url) {
-      qrCodeBuffer = await QRCode.toBuffer(snapTransaction.redirect_url, {
-        width: 400,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      });
-    }
-
     return {
       success: true,
-      token: snapTransaction.token,
       orderId: orderId,
-      paymentLink: snapTransaction.redirect_url,
+      qrisString: qrisString,
       qrCodeBuffer: qrCodeBuffer,
-      rawData: snapTransaction
+      paymentLink: snapTransaction.redirect_url,
+      token: snapTransaction.token,
+      rawData: {
+        qris: qrisTransaction,
+        snap: snapTransaction
+      }
     };
 
   } catch (error) {

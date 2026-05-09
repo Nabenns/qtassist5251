@@ -1,9 +1,10 @@
 const { Product, Transaction, TemporaryRole } = require('../database/models');
-const { createTransaction } = require('../services/midtransService');
+const { createTransaction, getTransactionStatus } = require('../services/midtransService');
 const { createSuccessEmbed, createErrorEmbed, createInfoEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 const { formatDuration } = require('../utils/parseDuration');
-const { AttachmentBuilder } = require('discord.js');
+const { AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const QRCode = require('qrcode');
+const { handleRefreshPayment } = require('./refreshPaymentHandler');
 
 module.exports = {
   name: 'interactionCreate',
@@ -11,9 +12,35 @@ module.exports = {
     // Only handle button interactions
     if (!interaction.isButton()) return;
 
-    // Handle buy product button
-    if (interaction.customId.startsWith('buy_product_')) {
-      await handleBuyProduct(interaction);
+    try {
+      // Handle buy product button
+      if (interaction.customId.startsWith('buy_product_')) {
+        await handleBuyProduct(interaction);
+      }
+
+      // Handle refresh payment status button
+      if (interaction.customId.startsWith('refresh_payment_')) {
+        await handleRefreshPayment(interaction);
+      }
+    } catch (error) {
+      console.error('Error handling button interaction:', error);
+
+      // Try to respond to the interaction if not already responded
+      try {
+        const errorEmbed = createErrorEmbed(
+          'Interaction Error',
+          'This button may have expired or is no longer valid. Please try creating a new transaction.'
+        );
+
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply({ embeds: [errorEmbed] });
+        } else {
+          await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        }
+      } catch (replyError) {
+        // Interaction is too old or already acknowledged, just log it
+        console.error('Could not send error response:', replyError.message);
+      }
     }
   }
 };
@@ -149,12 +176,20 @@ async function handleBuyProduct(interaction) {
         iconURL: QTRADES_LOGO_URL || interaction.client.user.displayAvatarURL()
       });
 
+      // Create refresh button for pending transaction
+      const refreshButton = new ButtonBuilder()
+        .setCustomId(`refresh_payment_${pendingTransaction.orderId}`)
+        .setLabel('🔄 Refresh Payment Status')
+        .setStyle(ButtonStyle.Primary);
+
+      const row = new ActionRowBuilder().addComponents(refreshButton);
+
       if (qrCodeBuffer) {
         const qrAttachment = new AttachmentBuilder(qrCodeBuffer, { name: 'qris.png' });
-        return interaction.editReply({ embeds: [embed], files: [qrAttachment] });
+        return interaction.editReply({ embeds: [embed], files: [qrAttachment], components: [row] });
       }
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply({ embeds: [embed], components: [row] });
     }
 
     // Generate unique order ID
@@ -239,9 +274,18 @@ async function handleBuyProduct(interaction) {
     // Create attachment from QR code buffer
     const qrAttachment = new AttachmentBuilder(midtransResult.qrCodeBuffer, { name: 'qris.png' });
 
+    // Create refresh button
+    const refreshButton = new ButtonBuilder()
+      .setCustomId(`refresh_payment_${orderId}`)
+      .setLabel('🔄 Refresh Payment Status')
+      .setStyle(ButtonStyle.Primary);
+
+    const row = new ActionRowBuilder().addComponents(refreshButton);
+
     await interaction.editReply({
       embeds: [embed],
-      files: [qrAttachment]
+      files: [qrAttachment],
+      components: [row]
     });
 
     // Also send DM with QR code

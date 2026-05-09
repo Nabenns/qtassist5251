@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const { TemporaryRole, ModerationLog } = require('../database/models');
+const { TemporaryRole, ModerationLog, Transaction } = require('../database/models');
 const { Op } = require('sequelize');
 const { createWarningEmbed, createInfoEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 
@@ -224,6 +224,48 @@ async function sendExpiryNotifications() {
 }
 
 /**
+ * Check and expire old pending transactions
+ * Midtrans default expiry is 24 hours
+ */
+async function checkExpiredTransactions() {
+  try {
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+
+    // Find all pending transactions older than 24 hours
+    const expiredTransactions = await Transaction.findAll({
+      where: {
+        status: 'pending',
+        createdAt: {
+          [Op.lte]: twentyFourHoursAgo
+        }
+      }
+    });
+
+    if (expiredTransactions.length === 0) {
+      return;
+    }
+
+    console.log(`🔍 Found ${expiredTransactions.length} expired transaction(s). Marking as expired...`);
+
+    for (const transaction of expiredTransactions) {
+      try {
+        transaction.status = 'expired';
+        await transaction.save();
+
+        console.log(`✅ Marked transaction ${transaction.orderId} as expired`);
+
+      } catch (error) {
+        console.error(`Error expiring transaction ${transaction.orderId}:`, error);
+      }
+    }
+
+  } catch (error) {
+    console.error('Error in checkExpiredTransactions:', error);
+  }
+}
+
+/**
  * Start all cron jobs
  */
 function startCronJobs(discordClient) {
@@ -239,6 +281,11 @@ function startCronJobs(discordClient) {
   // Check for expiry notifications every 5 minutes
   cron.schedule('*/5 * * * *', async () => {
     await sendExpiryNotifications();
+  });
+
+  // Check expired transactions every 30 minutes
+  cron.schedule('*/30 * * * *', async () => {
+    await checkExpiredTransactions();
   });
 
   console.log('✅ Cron jobs started successfully.');
