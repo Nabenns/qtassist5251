@@ -4,6 +4,10 @@ const ModerationLog = require('./ModerationLog');
 const Product = require('./Product');
 const Transaction = require('./Transaction');
 
+// Define associations
+Product.hasMany(Transaction, { foreignKey: 'productId', as: 'transactions' });
+Transaction.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
+
 // Initialize database and sync models
 const initDatabase = async () => {
   try {

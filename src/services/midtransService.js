@@ -26,7 +26,7 @@ const snap = new midtransClient.Snap({
  */
 async function createTransaction({ orderId, amount, customerDetails, itemDetails }) {
   try {
-    // Create Snap transaction (supports QRIS)
+    // Create Snap transaction (allow all available payment methods in sandbox)
     const snapParameter = {
       transaction_details: {
         order_id: orderId,
@@ -34,7 +34,7 @@ async function createTransaction({ orderId, amount, customerDetails, itemDetails
       },
       customer_details: customerDetails,
       item_details: itemDetails,
-      enabled_payments: ['qris', 'gopay', 'shopeepay'], // E-wallet options
+      // Don't restrict payment methods - let Midtrans show what's available
     };
 
     const snapTransaction = await snap.createTransaction(snapParameter);
