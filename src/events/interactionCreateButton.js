@@ -3,6 +3,7 @@ const { createTransaction } = require('../services/midtransService');
 const { createSuccessEmbed, createErrorEmbed, createInfoEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 const { formatDuration } = require('../utils/parseDuration');
 const { AttachmentBuilder } = require('discord.js');
+const QRCode = require('qrcode');
 
 module.exports = {
   name: 'interactionCreate',
@@ -90,21 +91,56 @@ async function handleBuyProduct(interaction) {
         minimumFractionDigits: 0
       }).format(product.price);
 
-      // Check if we have QR code data in midtransData
-      const hasQrCode = pendingTransaction.midtransData && pendingTransaction.midtransData.qrCodeBuffer;
+      // Generate QR code from QRIS string (stored in paymentUrl)
+      let qrCodeBuffer = null;
+
+      // Try to get QR code buffer from midtransData first
+      if (pendingTransaction.midtransData && pendingTransaction.midtransData.qrCodeBuffer) {
+        qrCodeBuffer = Buffer.from(pendingTransaction.midtransData.qrCodeBuffer);
+      }
+      // If no buffer, regenerate from QRIS string
+      else if (pendingTransaction.paymentUrl) {
+        try {
+          qrCodeBuffer = await QRCode.toBuffer(pendingTransaction.paymentUrl, {
+            width: 400,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            }
+          });
+        } catch (error) {
+          console.error('Error generating QR code for pending transaction:', error);
+        }
+      }
+
+      // Get payment link from midtransData
+      const paymentLink = pendingTransaction.midtransData?.paymentLink || null;
+
+      const fields = [
+        { name: 'Order ID', value: pendingTransaction.orderId, inline: true },
+        { name: 'Amount', value: formattedPrice, inline: true }
+      ];
+
+      if (qrCodeBuffer || paymentLink) {
+        fields.push({ name: '\u200B', value: '**Payment Options:**', inline: false });
+      }
+
+      if (qrCodeBuffer) {
+        fields.push({ name: '📱 Option 1: Scan QR Code', value: 'Scan the QR code below with any e-wallet app', inline: false });
+      }
+
+      if (paymentLink) {
+        fields.push({ name: '🌐 Option 2: Payment Link', value: `[Click here to open payment page](${paymentLink})`, inline: false });
+      }
 
       const embed = createInfoEmbed(
         'Pending Payment',
-        hasQrCode
-          ? `You already have a pending payment for **${product.name}**. Scan the QR code below to complete payment.`
-          : `You already have a pending payment for **${product.name}**`,
-        [
-          { name: 'Order ID', value: pendingTransaction.orderId, inline: true },
-          { name: 'Amount', value: formattedPrice, inline: true }
-        ]
+        `You already have a pending payment for **${product.name}**. Choose your payment method below.`,
+        fields
       );
 
-      if (hasQrCode) {
+      if (qrCodeBuffer) {
         embed.setImage('attachment://qris.png');
       }
 
@@ -113,9 +149,8 @@ async function handleBuyProduct(interaction) {
         iconURL: QTRADES_LOGO_URL || interaction.client.user.displayAvatarURL()
       });
 
-      if (hasQrCode) {
-        const qrBuffer = Buffer.from(pendingTransaction.midtransData.qrCodeBuffer);
-        const qrAttachment = new AttachmentBuilder(qrBuffer, { name: 'qris.png' });
+      if (qrCodeBuffer) {
+        const qrAttachment = new AttachmentBuilder(qrCodeBuffer, { name: 'qris.png' });
         return interaction.editReply({ embeds: [embed], files: [qrAttachment] });
       }
 
@@ -177,23 +212,26 @@ async function handleBuyProduct(interaction) {
     const expiryDate = midtransResult.expiryTime ? new Date(midtransResult.expiryTime) : null;
     const expiryTimestamp = expiryDate ? `<t:${Math.floor(expiryDate.getTime() / 1000)}:R>` : '24 hours';
 
-    // Create embed with QR code
+    // Create embed with QR code and payment link
     const embed = createSuccessEmbed(
       'Payment Created',
-      `Scan the QR code below to pay for **${product.name}**`,
+      `Choose your payment method for **${product.name}**`,
       [
         { name: 'Product', value: product.name, inline: true },
         { name: 'Role', value: `${role}`, inline: true },
         { name: 'Price', value: formattedPrice, inline: true },
         { name: 'Duration', value: formatDuration(product.duration), inline: true },
         { name: 'Order ID', value: orderId, inline: false },
-        { name: 'Expires', value: expiryTimestamp, inline: false }
+        { name: 'Expires', value: expiryTimestamp, inline: false },
+        { name: '\u200B', value: '**Payment Options:**', inline: false },
+        { name: '📱 Option 1: Scan QR Code', value: 'Scan the QR code below with any e-wallet app', inline: false },
+        { name: '🌐 Option 2: Payment Link', value: `[Click here to open payment page](${midtransResult.paymentLink})`, inline: false }
       ]
     );
 
     embed.setImage('attachment://qris.png')
       .setFooter({
-        text: 'Scan with any e-wallet app • Role will be assigned automatically',
+        text: 'Choose either method • Role will be assigned automatically after payment',
         iconURL: QTRADES_LOGO_URL || interaction.client.user.displayAvatarURL()
       })
       .setThumbnail(QTRADES_LOGO_URL || role.iconURL() || guild.iconURL({ dynamic: true }));

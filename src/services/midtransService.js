@@ -16,17 +16,18 @@ const snap = new midtransClient.Snap({
 });
 
 /**
- * Create payment transaction with QRIS
+ * Create payment transaction with QRIS and payment link
  * @param {Object} params - Transaction parameters
  * @param {string} params.orderId - Unique order ID
  * @param {number} params.amount - Amount in IDR
  * @param {Object} params.customerDetails - Customer info
  * @param {Array} params.itemDetails - Items being purchased
- * @returns {Promise<Object>} Transaction response with QR code
+ * @returns {Promise<Object>} Transaction response with QR code and payment link
  */
 async function createTransaction({ orderId, amount, customerDetails, itemDetails }) {
   try {
-    const parameter = {
+    // Create QRIS transaction using Core API
+    const coreParameter = {
       payment_type: 'qris',
       transaction_details: {
         order_id: orderId,
@@ -39,12 +40,12 @@ async function createTransaction({ orderId, amount, customerDetails, itemDetails
       }
     };
 
-    const transaction = await core.charge(parameter);
+    const coreTransaction = await core.charge(coreParameter);
 
     // Generate QR Code image from the QRIS string
     let qrCodeBuffer = null;
-    if (transaction.actions && transaction.actions.length > 0) {
-      const qrisString = transaction.actions[0].url; // QRIS string
+    if (coreTransaction.actions && coreTransaction.actions.length > 0) {
+      const qrisString = coreTransaction.actions[0].url; // QRIS string
       qrCodeBuffer = await QRCode.toBuffer(qrisString, {
         width: 400,
         margin: 2,
@@ -55,14 +56,31 @@ async function createTransaction({ orderId, amount, customerDetails, itemDetails
       });
     }
 
+    // Also create Snap transaction for payment link
+    const snapParameter = {
+      transaction_details: {
+        order_id: orderId + '-LINK', // Different order ID for Snap
+        gross_amount: amount
+      },
+      customer_details: customerDetails,
+      item_details: itemDetails,
+      enabled_payments: ['qris'], // QRIS only
+    };
+
+    const snapTransaction = await snap.createTransaction(snapParameter);
+
     return {
       success: true,
-      transactionId: transaction.transaction_id,
+      transactionId: coreTransaction.transaction_id,
       orderId: orderId,
-      qrisString: transaction.actions?.[0]?.url || null,
+      qrisString: coreTransaction.actions?.[0]?.url || null,
       qrCodeBuffer: qrCodeBuffer,
-      expiryTime: transaction.expiry_time,
-      rawData: transaction
+      paymentLink: snapTransaction.redirect_url,
+      expiryTime: coreTransaction.expiry_time,
+      rawData: {
+        core: coreTransaction,
+        snap: snapTransaction
+      }
     };
 
   } catch (error) {
