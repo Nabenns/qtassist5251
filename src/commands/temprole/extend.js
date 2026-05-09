@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { TemporaryRole, ModerationLog } = require('../../database/models');
 const { parseDuration, formatDuration } = require('../../utils/parseDuration');
-const { createSuccessEmbed, createErrorEmbed } = require('../../utils/embedBuilder');
+const { createSuccessEmbed, createErrorEmbed, QTRADES_LOGO_URL } = require('../../utils/embedBuilder');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -87,32 +87,48 @@ module.exports = {
         expiryTime: newExpiresAt
       });
 
-      // Send success message
+      // Send success message with enhanced UI
+      const oldTimestamp = Math.floor(oldExpiresAt.getTime() / 1000);
+      const newTimestamp = Math.floor(newExpiresAt.getTime() / 1000);
+
       const embed = createSuccessEmbed(
         'Temporary Role Extended',
-        null,
+        `Successfully extended temporary role for ${targetUser}`,
         [
           { name: 'User', value: `${targetUser}`, inline: true },
           { name: 'Role', value: `${role}`, inline: true },
           { name: 'Extended By', value: `${interaction.user}`, inline: true },
           { name: 'Additional Time', value: formatDuration(additionalMs), inline: true },
-          { name: 'Old Expiry', value: `<t:${Math.floor(oldExpiresAt.getTime() / 1000)}:F>`, inline: false },
-          { name: 'New Expiry', value: `<t:${Math.floor(newExpiresAt.getTime() / 1000)}:F>\n(<t:${Math.floor(newExpiresAt.getTime() / 1000)}:R>)`, inline: false }
+          { name: 'Old Expiry', value: `<t:${oldTimestamp}:F>`, inline: false },
+          { name: 'New Expiry', value: `<t:${newTimestamp}:F>\n<t:${newTimestamp}:R>`, inline: false }
         ]
       );
 
+      embed.setFooter({
+        text: 'Role extended • Notifications reset',
+        iconURL: QTRADES_LOGO_URL || interaction.client.user.displayAvatarURL()
+      })
+      .setThumbnail(QTRADES_LOGO_URL || targetUser.displayAvatarURL({ dynamic: true }));
+
       await interaction.editReply({ embeds: [embed] });
 
-      // Notify user via DM
+      // Notify user via DM with enhanced UI
       try {
         const dmEmbed = createSuccessEmbed(
           'Temporary Role Extended',
           `Your temporary **${role.name}** role in **${guild.name}** has been extended.`,
           [
             { name: 'Additional Time', value: formatDuration(additionalMs), inline: true },
-            { name: 'New Expiry', value: `<t:${Math.floor(newExpiresAt.getTime() / 1000)}:R>`, inline: true }
+            { name: 'New Expiry', value: `<t:${newTimestamp}:R>`, inline: true }
           ]
         );
+
+        dmEmbed.setFooter({
+          text: `${guild.name} • You'll receive new reminders before expiry`,
+          iconURL: QTRADES_LOGO_URL || guild.iconURL({ dynamic: true })
+        })
+        .setThumbnail(QTRADES_LOGO_URL || guild.iconURL({ dynamic: true }))
+        .setTimestamp(newExpiresAt);
 
         await targetUser.send({ embeds: [dmEmbed] });
       } catch (error) {

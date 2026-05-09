@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const { TemporaryRole, ModerationLog } = require('../database/models');
 const { Op } = require('sequelize');
-const { createWarningEmbed, createInfoEmbed } = require('../utils/embedBuilder');
+const { createWarningEmbed, createInfoEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 
 let client = null;
 
@@ -58,18 +58,24 @@ async function checkExpiredRoles() {
           reason: 'Role expired automatically'
         });
 
-        // Notify user via DM
+        // Notify user via DM with enhanced UI
         if (member) {
           try {
             const user = await client.users.fetch(tempRole.userId);
             const roleName = role ? role.name : 'Unknown Role';
 
-            await user.send({
-              embeds: [createInfoEmbed(
-                'Temporary Role Expired',
-                `Your temporary **${roleName}** role in **${guild.name}** has expired and been removed.`
-              )]
-            });
+            const dmEmbed = createInfoEmbed(
+              'Temporary Role Expired',
+              `Your temporary **${roleName}** role in **${guild.name}** has expired and been removed.`
+            );
+
+            dmEmbed.setFooter({
+              text: `${guild.name}`,
+              iconURL: QTRADES_LOGO_URL || guild.iconURL({ dynamic: true })
+            })
+            .setThumbnail(QTRADES_LOGO_URL || guild.iconURL({ dynamic: true }));
+
+            await user.send({ embeds: [dmEmbed] });
           } catch (error) {
             console.log(`Could not send DM to user ${tempRole.userId}`);
           }
@@ -140,12 +146,18 @@ async function sendExpiryNotifications() {
 
         const expiresTimestamp = Math.floor(tempRole.expiresAt.getTime() / 1000);
 
-        await user.send({
-          embeds: [createWarningEmbed(
-            'Temporary Role Expiring Soon',
-            `Your temporary **${roleName}** role in **${guild.name}** will expire <t:${expiresTimestamp}:R> (in ~24 hours).`
-          )]
-        });
+        const warningEmbed = createWarningEmbed(
+          'Temporary Role Expiring Soon',
+          `Your temporary **${roleName}** role in **${guild.name}** will expire <t:${expiresTimestamp}:R> (in ~24 hours).`
+        );
+
+        warningEmbed.setFooter({
+          text: `${guild.name} • Final reminder at 1 hour before expiry`,
+          iconURL: QTRADES_LOGO_URL || guild.iconURL({ dynamic: true })
+        })
+        .setThumbnail(QTRADES_LOGO_URL || guild.iconURL({ dynamic: true }));
+
+        await user.send({ embeds: [warningEmbed] });
 
         tempRole.notified24h = true;
         await tempRole.save();
@@ -183,12 +195,18 @@ async function sendExpiryNotifications() {
 
         const expiresTimestamp = Math.floor(tempRole.expiresAt.getTime() / 1000);
 
-        await user.send({
-          embeds: [createWarningEmbed(
-            'Temporary Role Expiring Soon',
-            `Your temporary **${roleName}** role in **${guild.name}** will expire <t:${expiresTimestamp}:R> (in ~1 hour).`
-          )]
-        });
+        const warningEmbed = createWarningEmbed(
+          'Temporary Role Expiring Soon',
+          `Your temporary **${roleName}** role in **${guild.name}** will expire <t:${expiresTimestamp}:R> (in ~1 hour).`
+        );
+
+        warningEmbed.setFooter({
+          text: `${guild.name} • This is your final reminder`,
+          iconURL: QTRADES_LOGO_URL || guild.iconURL({ dynamic: true })
+        })
+        .setThumbnail(QTRADES_LOGO_URL || guild.iconURL({ dynamic: true }));
+
+        await user.send({ embeds: [warningEmbed] });
 
         tempRole.notified1h = true;
         await tempRole.save();

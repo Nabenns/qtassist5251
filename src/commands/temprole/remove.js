@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { TemporaryRole, ModerationLog } = require('../../database/models');
-const { createSuccessEmbed, createErrorEmbed } = require('../../utils/embedBuilder');
+const { createSuccessEmbed, createErrorEmbed, QTRADES_LOGO_URL } = require('../../utils/embedBuilder');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -65,10 +65,10 @@ module.exports = {
         reason: 'Manually removed by moderator'
       });
 
-      // Send success message
+      // Send success message with enhanced UI
       const embed = createSuccessEmbed(
         'Temporary Role Removed',
-        null,
+        `Successfully removed temporary role from ${targetUser}`,
         [
           { name: 'User', value: `${targetUser}`, inline: true },
           { name: 'Role', value: `${role}`, inline: true },
@@ -76,16 +76,28 @@ module.exports = {
         ]
       );
 
+      embed.setFooter({
+        text: 'Role removed manually by moderator',
+        iconURL: QTRADES_LOGO_URL || interaction.client.user.displayAvatarURL()
+      })
+      .setThumbnail(QTRADES_LOGO_URL || targetUser.displayAvatarURL({ dynamic: true }));
+
       await interaction.editReply({ embeds: [embed] });
 
-      // Notify user via DM
+      // Notify user via DM with enhanced UI
       try {
-        await targetUser.send({
-          embeds: [createSuccessEmbed(
-            'Temporary Role Removed',
-            `Your temporary **${role.name}** role in **${guild.name}** has been removed by a moderator.`
-          )]
-        });
+        const dmEmbed = createSuccessEmbed(
+          'Temporary Role Removed',
+          `Your temporary **${role.name}** role in **${guild.name}** has been removed by a moderator.`
+        );
+
+        dmEmbed.setFooter({
+          text: `${guild.name}`,
+          iconURL: QTRADES_LOGO_URL || guild.iconURL({ dynamic: true })
+        })
+        .setThumbnail(QTRADES_LOGO_URL || guild.iconURL({ dynamic: true }));
+
+        await targetUser.send({ embeds: [dmEmbed] });
       } catch (error) {
         console.log(`Could not send DM to ${targetUser.tag}`);
       }
