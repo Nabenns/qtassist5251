@@ -146,28 +146,77 @@ async function processPaymentSuccess(transaction) {
       return;
     }
 
-    // Add role to user
-    await member.roles.add(role);
-    console.log(`✅ Added role ${role.name} to ${member.user.tag}`);
-
-    // Calculate expiry time
-    const expiresAt = new Date(Date.now() + parseInt(product.duration));
-
-    // Create temporary role entry
-    await TemporaryRole.create({
-      serverId: guild.id,
-      userId: member.id,
-      roleId: role.id,
-      grantedAt: new Date(),
-      expiresAt: expiresAt,
-      grantedBy: discordClient.user.id,
-      reason: `Purchased via payment - Order: ${transaction.orderId}`,
-      notified24h: false,
-      notified1h: false,
-      isBulkOperation: false
+    // Check for existing temporary role (for role stacking)
+    const existingTempRole = await TemporaryRole.findOne({
+      where: {
+        serverId: guild.id,
+        userId: member.id,
+        roleId: role.id
+      }
     });
 
-    console.log(`✅ Created temporary role entry, expires at: ${expiresAt}`);
+    let expiresAt;
+    let isExtension = false;
+
+    if (existingTempRole) {
+      // Role stacking: extend the expiry time
+      const now = new Date();
+      if (existingTempRole.expiresAt > now) {
+        // Extend from current expiry
+        expiresAt = new Date(existingTempRole.expiresAt.getTime() + parseInt(product.duration));
+        isExtension = true;
+
+        existingTempRole.expiresAt = expiresAt;
+        existingTempRole.notified24h = false;
+        existingTempRole.notified1h = false;
+        await existingTempRole.save();
+
+        console.log(`✅ Extended role ${role.name} for ${member.user.tag} until ${expiresAt}`);
+      } else {
+        // Role expired, create new entry
+        expiresAt = new Date(Date.now() + parseInt(product.duration));
+        await existingTempRole.destroy();
+
+        await TemporaryRole.create({
+          serverId: guild.id,
+          userId: member.id,
+          roleId: role.id,
+          grantedAt: new Date(),
+          expiresAt: expiresAt,
+          grantedBy: discordClient.user.id,
+          reason: `Purchased via payment - Order: ${transaction.orderId}`,
+          notified24h: false,
+          notified1h: false,
+          isBulkOperation: false
+        });
+
+        console.log(`✅ Created new temporary role entry, expires at: ${expiresAt}`);
+      }
+    } else {
+      // No existing role, create new
+      expiresAt = new Date(Date.now() + parseInt(product.duration));
+
+      await TemporaryRole.create({
+        serverId: guild.id,
+        userId: member.id,
+        roleId: role.id,
+        grantedAt: new Date(),
+        expiresAt: expiresAt,
+        grantedBy: discordClient.user.id,
+        reason: `Purchased via payment - Order: ${transaction.orderId}`,
+        notified24h: false,
+        notified1h: false,
+        isBulkOperation: false
+      });
+
+      console.log(`✅ Created temporary role entry, expires at: ${expiresAt}`);
+    }
+
+    // Add role to user if they don't have it
+    if (!member.roles.cache.has(role.id)) {
+      await member.roles.add(role);
+      console.log(`✅ Added role ${role.name} to ${member.user.tag}`);
+    }
 
     // Log action
     await ModerationLog.create({

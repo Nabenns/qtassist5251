@@ -84,7 +84,7 @@ async function handleBuyProduct(interaction) {
       });
     }
 
-    // Check if user already has temporary role
+    // Check if user already has temporary role (for role stacking)
     const existingTempRole = await TemporaryRole.findOne({
       where: {
         serverId: guild.id,
@@ -93,13 +93,16 @@ async function handleBuyProduct(interaction) {
       }
     });
 
-    if (existingTempRole || member.roles.cache.has(role.id)) {
-      return interaction.editReply({
-        embeds: [createErrorEmbed(
-          'Role Already Owned',
-          `You already have the ${role} role. Please wait until it expires before purchasing again.`
-        )]
-      });
+    // Role stacking: If user already has the role, allow them to extend duration
+    let isExtension = false;
+    let currentExpiry = null;
+
+    if (existingTempRole) {
+      const now = new Date();
+      if (existingTempRole.expiresAt > now) {
+        isExtension = true;
+        currentExpiry = existingTempRole.expiresAt;
+      }
     }
 
     // Check for pending transaction
@@ -247,21 +250,40 @@ async function handleBuyProduct(interaction) {
     const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
     const expiryTimestamp = `<t:${Math.floor(expiryDate.getTime() / 1000)}:R>`;
 
+    // Create embed fields
+    const embedFields = [
+      { name: 'Product', value: product.name, inline: true },
+      { name: 'Role', value: `${role}`, inline: true },
+      { name: 'Price', value: formattedPrice, inline: true },
+      { name: 'Duration', value: formatDuration(product.duration), inline: true },
+      { name: 'Order ID', value: orderId, inline: false }
+    ];
+
+    // Add extension info if user is extending
+    if (isExtension && currentExpiry) {
+      const currentExpiryTimestamp = Math.floor(currentExpiry.getTime() / 1000);
+      const newExpiry = new Date(currentExpiry.getTime() + parseInt(product.duration));
+      const newExpiryTimestamp = Math.floor(newExpiry.getTime() / 1000);
+
+      embedFields.push({
+        name: '🔄 Role Extension',
+        value: `Current Expiry: <t:${currentExpiryTimestamp}:R>\nNew Expiry: <t:${newExpiryTimestamp}:R>\n**+${formatDuration(product.duration)}** will be added to your current time!`,
+        inline: false
+      });
+    }
+
+    embedFields.push(
+      { name: 'Payment Expires', value: expiryTimestamp, inline: false },
+      { name: '\u200B', value: '**Payment Options:**', inline: false },
+      { name: '📱 Option 1: Scan QR Code', value: 'Scan the QR code below with any e-wallet app', inline: false },
+      { name: '🌐 Option 2: Payment Link', value: `[Click here to open payment page](${midtransResult.paymentLink})`, inline: false }
+    );
+
     // Create embed with QR code and payment link
     const embed = createSuccessEmbed(
-      'Payment Created',
+      isExtension ? 'Extend Role Duration' : 'Payment Created',
       `Choose your payment method for **${product.name}**`,
-      [
-        { name: 'Product', value: product.name, inline: true },
-        { name: 'Role', value: `${role}`, inline: true },
-        { name: 'Price', value: formattedPrice, inline: true },
-        { name: 'Duration', value: formatDuration(product.duration), inline: true },
-        { name: 'Order ID', value: orderId, inline: false },
-        { name: 'Expires', value: expiryTimestamp, inline: false },
-        { name: '\u200B', value: '**Payment Options:**', inline: false },
-        { name: '📱 Option 1: Scan QR Code', value: 'Scan the QR code below with any e-wallet app', inline: false },
-        { name: '🌐 Option 2: Payment Link', value: `[Click here to open payment page](${midtransResult.paymentLink})`, inline: false }
-      ]
+      embedFields
     );
 
     embed.setImage('attachment://qris.png')
