@@ -141,35 +141,48 @@ module.exports = {
         expiryTime: expiresAt
       });
 
-      // Send success message
+      // Send success message with enhanced UI
+      const expiryTimestamp = Math.floor(expiresAt.getTime() / 1000);
+
       const embed = createSuccessEmbed(
         'Temporary Role Added',
-        null,
+        `Successfully assigned temporary role to ${targetUser}`,
         [
-          { name: 'User', value: `${targetUser}`, inline: true },
-          { name: 'Role', value: `${role}`, inline: true },
-          { name: 'Duration', value: formatDuration(durationMs), inline: true },
-          { name: 'Expires', value: `<t:${Math.floor(expiresAt.getTime() / 1000)}:F>\n(<t:${Math.floor(expiresAt.getTime() / 1000)}:R>)`, inline: false },
-          { name: 'Granted By', value: `${interaction.user}`, inline: true },
-          { name: 'Reason', value: reason, inline: false }
+          { name: '👤 User', value: `${targetUser}`, inline: true },
+          { name: '🎭 Role', value: `${role}`, inline: true },
+          { name: '⏱️ Duration', value: formatDuration(durationMs), inline: true },
+          { name: '📅 Expires', value: `<t:${expiryTimestamp}:F>\n⏰ <t:${expiryTimestamp}:R>`, inline: false },
+          { name: '👮 Granted By', value: `${interaction.user}`, inline: true },
+          { name: '📝 Reason', value: reason, inline: false }
         ]
       );
 
-      embed.setFooter({ text: 'The role will be automatically removed when it expires.' });
+      embed.setFooter({
+        text: '🤖 Role will auto-remove on expiry • Notifications at 24h & 1h before expiry',
+        iconURL: interaction.client.user.displayAvatarURL()
+      })
+      .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }));
 
       await interaction.editReply({ embeds: [embed] });
 
-      // Send DM to user
+      // Send DM to user with enhanced UI
       try {
         const dmEmbed = createSuccessEmbed(
           'Temporary Role Assigned',
           `You have been assigned the **${role.name}** role in **${guild.name}**.`,
           [
-            { name: 'Duration', value: formatDuration(durationMs), inline: true },
-            { name: 'Expires', value: `<t:${Math.floor(expiresAt.getTime() / 1000)}:R>`, inline: true },
-            { name: 'Reason', value: reason, inline: false }
+            { name: '⏱️ Duration', value: formatDuration(durationMs), inline: true },
+            { name: '📅 Expires', value: `<t:${expiryTimestamp}:R>`, inline: true },
+            { name: '📝 Reason', value: reason, inline: false }
           ]
         );
+
+        dmEmbed.setFooter({
+          text: `${guild.name} • You'll receive reminders before expiry`,
+          iconURL: guild.iconURL({ dynamic: true })
+        })
+        .setThumbnail(role.iconURL() || guild.iconURL({ dynamic: true }))
+        .setTimestamp(expiresAt);
 
         await targetUser.send({ embeds: [dmEmbed] });
       } catch (error) {

@@ -51,12 +51,16 @@ module.exports = {
         });
       }
 
-      // Build embed
+      // Build embed with enhanced UI
       const title = filterUser
         ? `Active Temporary Roles for ${filterUser.tag}`
-        : `Active Temporary Roles (${tempRoles.length})`;
+        : `Active Temporary Roles`;
 
-      const embed = createInfoEmbed(title, null);
+      const description = filterUser
+        ? `Showing all active temporary roles for this user`
+        : `📊 **Total Active Roles:** ${tempRoles.length}\n🔄 Auto-updating every minute`;
+
+      const embed = createInfoEmbed(title, description);
 
       // Group by user if not filtered
       const rolesByUser = {};
@@ -74,7 +78,10 @@ module.exports = {
 
       for (const [userId, roles] of Object.entries(rolesByUser)) {
         if (fieldCount >= maxFields) {
-          embed.setFooter({ text: `Showing first ${maxFields} entries. Use /temprole-list with user filter for more.` });
+          embed.setFooter({
+            text: `⚠️ Showing first ${maxFields} entries • Use /temprole-list with user filter for more`,
+            iconURL: interaction.client.user.displayAvatarURL()
+          });
           break;
         }
 
@@ -93,20 +100,28 @@ module.exports = {
           const expiresTimestamp = Math.floor(tempRole.expiresAt.getTime() / 1000);
 
           const fieldValue = [
-            `**Role:** ${roleName}`,
-            `**Expires:** <t:${expiresTimestamp}:R>`,
-            `**Granted by:** ${grantedByName}`,
-            tempRole.reason ? `**Reason:** ${tempRole.reason}` : ''
+            `🎭 **Role:** ${roleName}`,
+            `⏰ **Expires:** <t:${expiresTimestamp}:R> (<t:${expiresTimestamp}:f>)`,
+            `👮 **Granted by:** ${grantedByName}`,
+            tempRole.reason ? `📝 **Reason:** ${tempRole.reason}` : ''
           ].filter(Boolean).join('\n');
 
           embed.addFields({
-            name: `${userName}`,
+            name: `👤 ${userName}`,
             value: fieldValue,
             inline: false
           });
 
           fieldCount++;
         }
+      }
+
+      // Add footer if not already set
+      if (!embed.data.footer) {
+        embed.setFooter({
+          text: `🤖 ${tempRoles.length} active role(s) • Updated every minute`,
+          iconURL: interaction.client.user.displayAvatarURL()
+        });
       }
 
       await interaction.editReply({ embeds: [embed] });
