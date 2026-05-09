@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { TemporaryRole, ModerationLog } = require('../../database/models');
 const { parseDuration, formatDuration } = require('../../utils/parseDuration');
-const { createSuccessEmbed, createErrorEmbed } = require('../../utils/embedBuilder');
+const { createSuccessEmbed, createErrorEmbed, QTRADES_LOGO_URL } = require('../../utils/embedBuilder');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -148,20 +148,20 @@ module.exports = {
         'Temporary Role Added',
         `Successfully assigned temporary role to ${targetUser}`,
         [
-          { name: '👤 User', value: `${targetUser}`, inline: true },
-          { name: '🎭 Role', value: `${role}`, inline: true },
-          { name: '⏱️ Duration', value: formatDuration(durationMs), inline: true },
-          { name: '📅 Expires', value: `<t:${expiryTimestamp}:F>\n⏰ <t:${expiryTimestamp}:R>`, inline: false },
-          { name: '👮 Granted By', value: `${interaction.user}`, inline: true },
-          { name: '📝 Reason', value: reason, inline: false }
+          { name: 'User', value: `${targetUser}`, inline: true },
+          { name: 'Role', value: `${role}`, inline: true },
+          { name: 'Duration', value: formatDuration(durationMs), inline: true },
+          { name: 'Expires', value: `<t:${expiryTimestamp}:F>\n<t:${expiryTimestamp}:R>`, inline: false },
+          { name: 'Granted By', value: `${interaction.user}`, inline: true },
+          { name: 'Reason', value: reason, inline: false }
         ]
       );
 
       embed.setFooter({
-        text: '🤖 Role will auto-remove on expiry • Notifications at 24h & 1h before expiry',
-        iconURL: interaction.client.user.displayAvatarURL()
+        text: 'Role will auto-remove on expiry • Notifications at 24h & 1h before expiry',
+        iconURL: QTRADES_LOGO_URL || interaction.client.user.displayAvatarURL()
       })
-      .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }));
+      .setThumbnail(QTRADES_LOGO_URL || targetUser.displayAvatarURL({ dynamic: true }));
 
       await interaction.editReply({ embeds: [embed] });
 
@@ -171,17 +171,17 @@ module.exports = {
           'Temporary Role Assigned',
           `You have been assigned the **${role.name}** role in **${guild.name}**.`,
           [
-            { name: '⏱️ Duration', value: formatDuration(durationMs), inline: true },
-            { name: '📅 Expires', value: `<t:${expiryTimestamp}:R>`, inline: true },
-            { name: '📝 Reason', value: reason, inline: false }
+            { name: 'Duration', value: formatDuration(durationMs), inline: true },
+            { name: 'Expires', value: `<t:${expiryTimestamp}:R>`, inline: true },
+            { name: 'Reason', value: reason, inline: false }
           ]
         );
 
         dmEmbed.setFooter({
           text: `${guild.name} • You'll receive reminders before expiry`,
-          iconURL: guild.iconURL({ dynamic: true })
+          iconURL: QTRADES_LOGO_URL || guild.iconURL({ dynamic: true })
         })
-        .setThumbnail(role.iconURL() || guild.iconURL({ dynamic: true }))
+        .setThumbnail(QTRADES_LOGO_URL || role.iconURL() || guild.iconURL({ dynamic: true }))
         .setTimestamp(expiresAt);
 
         await targetUser.send({ embeds: [dmEmbed] });

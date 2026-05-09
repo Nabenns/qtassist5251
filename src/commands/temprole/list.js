@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { TemporaryRole } = require('../../database/models');
-const { createInfoEmbed, createErrorEmbed } = require('../../utils/embedBuilder');
+const { createInfoEmbed, createErrorEmbed, QTRADES_LOGO_URL } = require('../../utils/embedBuilder');
 const { Op } = require('sequelize');
 
 module.exports = {
@@ -58,7 +58,7 @@ module.exports = {
 
       const description = filterUser
         ? `Showing all active temporary roles for this user`
-        : `📊 **Total Active Roles:** ${tempRoles.length}\n🔄 Auto-updating every minute`;
+        : `**Total Active Roles:** ${tempRoles.length}\nAuto-updating every minute`;
 
       const embed = createInfoEmbed(title, description);
 
@@ -79,8 +79,8 @@ module.exports = {
       for (const [userId, roles] of Object.entries(rolesByUser)) {
         if (fieldCount >= maxFields) {
           embed.setFooter({
-            text: `⚠️ Showing first ${maxFields} entries • Use /temprole-list with user filter for more`,
-            iconURL: interaction.client.user.displayAvatarURL()
+            text: `Showing first ${maxFields} entries • Use /temprole-list with user filter for more`,
+            iconURL: QTRADES_LOGO_URL || interaction.client.user.displayAvatarURL()
           });
           break;
         }
@@ -100,14 +100,14 @@ module.exports = {
           const expiresTimestamp = Math.floor(tempRole.expiresAt.getTime() / 1000);
 
           const fieldValue = [
-            `🎭 **Role:** ${roleName}`,
-            `⏰ **Expires:** <t:${expiresTimestamp}:R> (<t:${expiresTimestamp}:f>)`,
-            `👮 **Granted by:** ${grantedByName}`,
-            tempRole.reason ? `📝 **Reason:** ${tempRole.reason}` : ''
+            `**Role:** ${roleName}`,
+            `**Expires:** <t:${expiresTimestamp}:R> (<t:${expiresTimestamp}:f>)`,
+            `**Granted by:** ${grantedByName}`,
+            tempRole.reason ? `**Reason:** ${tempRole.reason}` : ''
           ].filter(Boolean).join('\n');
 
           embed.addFields({
-            name: `👤 ${userName}`,
+            name: userName,
             value: fieldValue,
             inline: false
           });
@@ -119,9 +119,14 @@ module.exports = {
       // Add footer if not already set
       if (!embed.data.footer) {
         embed.setFooter({
-          text: `🤖 ${tempRoles.length} active role(s) • Updated every minute`,
-          iconURL: interaction.client.user.displayAvatarURL()
+          text: `${tempRoles.length} active role(s) • Updated every minute`,
+          iconURL: QTRADES_LOGO_URL || interaction.client.user.displayAvatarURL()
         });
+      }
+
+      // Add thumbnail (QTrades logo if available)
+      if (QTRADES_LOGO_URL) {
+        embed.setThumbnail(QTRADES_LOGO_URL);
       }
 
       await interaction.editReply({ embeds: [embed] });

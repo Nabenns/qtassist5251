@@ -9,6 +9,9 @@ const COLORS = {
   PRIMARY: 0x9b59b6     // Modern purple
 };
 
+// QTrades logo URL from environment
+const QTRADES_LOGO_URL = process.env.QTRADES_LOGO_URL || null;
+
 /**
  * Create success embed with enhanced styling
  */
@@ -76,5 +79,6 @@ module.exports = {
   createErrorEmbed,
   createInfoEmbed,
   createWarningEmbed,
-  COLORS
+  COLORS,
+  QTRADES_LOGO_URL
 };
