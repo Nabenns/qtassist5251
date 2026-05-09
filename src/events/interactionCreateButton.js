@@ -91,14 +91,14 @@ async function handleBuyProduct(interaction) {
         minimumFractionDigits: 0
       }).format(product.price);
 
-      // Generate QR code from QRIS string (stored in paymentUrl)
+      // Generate QR code from payment URL
       let qrCodeBuffer = null;
 
       // Try to get QR code buffer from midtransData first
       if (pendingTransaction.midtransData && pendingTransaction.midtransData.qrCodeBuffer) {
         qrCodeBuffer = Buffer.from(pendingTransaction.midtransData.qrCodeBuffer);
       }
-      // If no buffer, regenerate from QRIS string
+      // If no buffer, regenerate from payment URL
       else if (pendingTransaction.paymentUrl) {
         try {
           qrCodeBuffer = await QRCode.toBuffer(pendingTransaction.paymentUrl, {
@@ -114,8 +114,8 @@ async function handleBuyProduct(interaction) {
         }
       }
 
-      // Get payment link from midtransData
-      const paymentLink = pendingTransaction.midtransData?.paymentLink || null;
+      // Get payment link from midtransData or paymentUrl
+      const paymentLink = pendingTransaction.midtransData?.paymentLink || pendingTransaction.paymentUrl || null;
 
       const fields = [
         { name: 'Order ID', value: pendingTransaction.orderId, inline: true },
@@ -196,7 +196,7 @@ async function handleBuyProduct(interaction) {
       productId: product.id,
       amount: product.price,
       status: 'pending',
-      paymentUrl: midtransResult.qrisString,
+      paymentUrl: midtransResult.paymentLink,
       paymentType: 'qris',
       midtransData: midtransResult
     });
@@ -208,9 +208,9 @@ async function handleBuyProduct(interaction) {
       minimumFractionDigits: 0
     }).format(product.price);
 
-    // Calculate expiry time (format the expiry_time from Midtrans)
-    const expiryDate = midtransResult.expiryTime ? new Date(midtransResult.expiryTime) : null;
-    const expiryTimestamp = expiryDate ? `<t:${Math.floor(expiryDate.getTime() / 1000)}:R>` : '24 hours';
+    // Calculate expiry time (Snap default is 24 hours)
+    const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+    const expiryTimestamp = `<t:${Math.floor(expiryDate.getTime() / 1000)}:R>`;
 
     // Create embed with QR code and payment link
     const embed = createSuccessEmbed(

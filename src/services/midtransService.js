@@ -16,7 +16,7 @@ const snap = new midtransClient.Snap({
 });
 
 /**
- * Create payment transaction with QRIS and payment link
+ * Create payment transaction with QRIS - using Snap API only
  * @param {Object} params - Transaction parameters
  * @param {string} params.orderId - Unique order ID
  * @param {number} params.amount - Amount in IDR
@@ -26,27 +26,23 @@ const snap = new midtransClient.Snap({
  */
 async function createTransaction({ orderId, amount, customerDetails, itemDetails }) {
   try {
-    // Create QRIS transaction using Core API
-    const coreParameter = {
-      payment_type: 'qris',
+    // Create Snap transaction (supports QRIS)
+    const snapParameter = {
       transaction_details: {
         order_id: orderId,
         gross_amount: amount
       },
       customer_details: customerDetails,
       item_details: itemDetails,
-      qris: {
-        acquirer: 'gopay' // Using GoPay as acquirer for QRIS
-      }
+      enabled_payments: ['qris', 'gopay', 'shopeepay'], // E-wallet options
     };
 
-    const coreTransaction = await core.charge(coreParameter);
+    const snapTransaction = await snap.createTransaction(snapParameter);
 
-    // Generate QR Code image from the QRIS string
+    // Generate QR Code from payment URL for quick access
     let qrCodeBuffer = null;
-    if (coreTransaction.actions && coreTransaction.actions.length > 0) {
-      const qrisString = coreTransaction.actions[0].url; // QRIS string
-      qrCodeBuffer = await QRCode.toBuffer(qrisString, {
+    if (snapTransaction.redirect_url) {
+      qrCodeBuffer = await QRCode.toBuffer(snapTransaction.redirect_url, {
         width: 400,
         margin: 2,
         color: {
@@ -56,31 +52,13 @@ async function createTransaction({ orderId, amount, customerDetails, itemDetails
       });
     }
 
-    // Also create Snap transaction for payment link
-    const snapParameter = {
-      transaction_details: {
-        order_id: orderId + '-LINK', // Different order ID for Snap
-        gross_amount: amount
-      },
-      customer_details: customerDetails,
-      item_details: itemDetails,
-      enabled_payments: ['qris'], // QRIS only
-    };
-
-    const snapTransaction = await snap.createTransaction(snapParameter);
-
     return {
       success: true,
-      transactionId: coreTransaction.transaction_id,
+      token: snapTransaction.token,
       orderId: orderId,
-      qrisString: coreTransaction.actions?.[0]?.url || null,
-      qrCodeBuffer: qrCodeBuffer,
       paymentLink: snapTransaction.redirect_url,
-      expiryTime: coreTransaction.expiry_time,
-      rawData: {
-        core: coreTransaction,
-        snap: snapTransaction
-      }
+      qrCodeBuffer: qrCodeBuffer,
+      rawData: snapTransaction
     };
 
   } catch (error) {
