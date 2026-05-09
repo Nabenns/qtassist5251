@@ -45,11 +45,12 @@ const TemporaryRole = sequelize.define('TemporaryRole', {
   templateUsed: {
     type: DataTypes.INTEGER,
     allowNull: true,
-    field: 'template_used',
-    references: {
-      model: 'RoleTemplates',
-      key: 'id'
-    }
+    field: 'template_used'
+    // Phase 2: Uncomment when RoleTemplates table is created
+    // references: {
+    //   model: 'RoleTemplates',
+    //   key: 'id'
+    // }
   },
   notified24h: {
     type: DataTypes.BOOLEAN,
