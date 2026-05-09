@@ -122,6 +122,16 @@ CREATE DATABASE qtassist_bot;
 5. Download credentials JSON
 6. Add service account email and private key to `.env`
 
+## Development Progress
+
+**📊 See [PROGRESS.md](PROGRESS.md) for detailed development tracking and next steps.**
+
+Current Status:
+- ✅ Phase 1: Core Temporary Role System (100% Complete)
+- ⏳ Phase 2: Role Templates & Bulk Operations (0%)
+- ⏳ Phase 3: Google Sheets Integration (0%)
+- ⏳ Phase 4: Testing & Additional Features (0%)
+
 ## Database Schema
 
 See [DATABASE.md](./docs/DATABASE.md) for detailed schema documentation.
@@ -155,10 +165,16 @@ qtassist5251/
 
 ## Development Timeline
 
-- **Week 1-3**: Core temporary role system ✅ (In Progress)
-- **Week 4-5**: Role templates & bulk operations
-- **Week 6-7**: Google Sheets integration
-- **Week 8**: Testing & deployment
+- **Week 1-3**: Core temporary role system ✅ (COMPLETED)
+- **Week 4-5**: Role templates & bulk operations ⏳ (Next)
+- **Week 6-7**: Google Sheets integration ⏳
+- **Week 8**: Testing & deployment ⏳
+
+## Documentation
+
+- **[PROGRESS.md](PROGRESS.md)** - Development progress tracking (for AI/developers)
+- **[docs/SETUP.md](docs/SETUP.md)** - Complete setup guide
+- **[discord-bot-prd.md](../discord-bot-prd.md)** - Product Requirements Document
 
 ## License
 
