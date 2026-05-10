@@ -1,45 +1,77 @@
 const { Product, Transaction, TemporaryRole } = require('../database/models');
-const { createTransaction, getTransactionStatus } = require('../services/midtransService');
-const { createSuccessEmbed, createErrorEmbed, createInfoEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
+const { createSuccessEmbed, createErrorEmbed, createInfoEmbed, createWarningEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 const { formatDuration } = require('../utils/parseDuration');
-const { AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const QRCode = require('qrcode');
-const { handleRefreshPayment } = require('./refreshPaymentHandler');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
 module.exports = {
   name: 'interactionCreate',
   async execute(interaction) {
-    // Only handle button interactions
-    if (!interaction.isButton()) return;
-
-    try {
-      // Handle buy product button
-      if (interaction.customId.startsWith('buy_product_')) {
-        await handleBuyProduct(interaction);
-      }
-
-      // Handle refresh payment status button
-      if (interaction.customId.startsWith('refresh_payment_')) {
-        await handleRefreshPayment(interaction);
-      }
-    } catch (error) {
-      console.error('Error handling button interaction:', error);
-
-      // Try to respond to the interaction if not already responded
+    // Handle button interactions
+    if (interaction.isButton()) {
       try {
-        const errorEmbed = createErrorEmbed(
-          'Interaction Error',
-          'This button may have expired or is no longer valid. Please try creating a new transaction.'
-        );
-
-        if (interaction.deferred || interaction.replied) {
-          await interaction.editReply({ embeds: [errorEmbed] });
-        } else {
-          await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        // Handle buy product button
+        if (interaction.customId.startsWith('buy_product_')) {
+          await handleBuyProduct(interaction);
         }
-      } catch (replyError) {
-        // Interaction is too old or already acknowledged, just log it
-        console.error('Could not send error response:', replyError.message);
+
+        // Handle upload proof button
+        if (interaction.customId.startsWith('upload_proof_')) {
+          await handleUploadProof(interaction);
+        }
+
+        // Handle approve payment button
+        if (interaction.customId.startsWith('approve_payment_')) {
+          await handleApprovePayment(interaction);
+        }
+
+        // Handle reject payment button
+        if (interaction.customId.startsWith('reject_payment_')) {
+          await handleRejectPayment(interaction);
+        }
+      } catch (error) {
+        console.error('Error handling button interaction:', error);
+
+        // Try to respond to the interaction if not already responded
+        try {
+          const errorEmbed = createErrorEmbed(
+            'Interaction Error',
+            'An error occurred while processing your request. Please try again.'
+          );
+
+          if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({ embeds: [errorEmbed] });
+          } else {
+            await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+          }
+        } catch (replyError) {
+          console.error('Could not send error response:', replyError.message);
+        }
+      }
+    }
+
+    // Handle modal (form) submissions
+    if (interaction.isModalSubmit()) {
+      try {
+        if (interaction.customId.startsWith('reject_reason_modal_')) {
+          await handleRejectReasonSubmit(interaction);
+        }
+      } catch (error) {
+        console.error('Error handling modal submission:', error);
+
+        try {
+          const errorEmbed = createErrorEmbed(
+            'Submission Error',
+            'An error occurred while processing your submission. Please try again.'
+          );
+
+          if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({ embeds: [errorEmbed] });
+          } else {
+            await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+          }
+        } catch (replyError) {
+          console.error('Could not send error response:', replyError.message);
+        }
       }
     }
   }
@@ -65,21 +97,19 @@ async function handleBuyProduct(interaction) {
     if (!product) {
       return interaction.editReply({
         embeds: [createErrorEmbed(
-          'Product Not Found',
-          'This product is no longer available.'
+          'Produk Tidak Ditemukan',
+          'Produk ini sudah tidak tersedia.'
         )]
       });
     }
 
-    // Check if user already has this role
-    const member = await guild.members.fetch(user.id);
+    // Check if role exists
     const role = guild.roles.cache.get(product.roleId);
-
     if (!role) {
       return interaction.editReply({
         embeds: [createErrorEmbed(
-          'Role Not Found',
-          'The role for this product no longer exists.'
+          'Role Tidak Ditemukan',
+          'Role untuk produk ini sudah tidak ada.'
         )]
       });
     }
@@ -93,7 +123,6 @@ async function handleBuyProduct(interaction) {
       }
     });
 
-    // Role stacking: If user already has the role, allow them to extend duration
     let isExtension = false;
     let currentExpiry = null;
 
@@ -105,12 +134,12 @@ async function handleBuyProduct(interaction) {
       }
     }
 
-    // Check for pending transaction
+    // Check for pending or pending_review transaction
     const pendingTransaction = await Transaction.findOne({
       where: {
         userId: user.id,
         productId: product.id,
-        status: 'pending'
+        status: ['pending', 'pending_review']
       }
     });
 
@@ -121,110 +150,36 @@ async function handleBuyProduct(interaction) {
         minimumFractionDigits: 0
       }).format(product.price);
 
-      // Generate QR code from payment URL
-      let qrCodeBuffer = null;
-
-      // Try to get QR code buffer from midtransData first
-      if (pendingTransaction.midtransData && pendingTransaction.midtransData.qrCodeBuffer) {
-        qrCodeBuffer = Buffer.from(pendingTransaction.midtransData.qrCodeBuffer);
-      }
-      // If no buffer, regenerate from payment URL
-      else if (pendingTransaction.paymentUrl) {
-        try {
-          qrCodeBuffer = await QRCode.toBuffer(pendingTransaction.paymentUrl, {
-            width: 400,
-            margin: 2,
-            color: {
-              dark: '#000000',
-              light: '#FFFFFF'
-            }
-          });
-        } catch (error) {
-          console.error('Error generating QR code for pending transaction:', error);
-        }
-      }
-
-      // Get payment link from midtransData or paymentUrl
-      const paymentLink = pendingTransaction.midtransData?.paymentLink || pendingTransaction.paymentUrl || null;
-
       const fields = [
-        { name: 'Order ID', value: pendingTransaction.orderId, inline: true },
-        { name: 'Amount', value: formattedPrice, inline: true }
+        { name: '🔖 Order ID', value: `\`${pendingTransaction.orderId}\``, inline: true },
+        { name: '💰 Jumlah', value: formattedPrice, inline: true },
+        { name: '📊 Status', value: pendingTransaction.status === 'pending_review' ? '⏳ Menunggu Admin' : '💳 Belum Bayar', inline: true }
       ];
 
-      if (qrCodeBuffer || paymentLink) {
-        fields.push({ name: '\u200B', value: '**Payment Options:**', inline: false });
-      }
+      const uploadButton = new ButtonBuilder()
+        .setCustomId(`upload_proof_${pendingTransaction.orderId}`)
+        .setLabel('📤 Upload Bukti Bayar')
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(pendingTransaction.status === 'pending_review');
 
-      if (qrCodeBuffer) {
-        fields.push({ name: '📱 Option 1: Scan QR Code', value: 'Scan the QR code below with any e-wallet app', inline: false });
-      }
-
-      if (paymentLink) {
-        fields.push({ name: '🌐 Option 2: Payment Link', value: `[Click here to open payment page](${paymentLink})`, inline: false });
-      }
+      const row = new ActionRowBuilder().addComponents(uploadButton);
 
       const embed = createInfoEmbed(
-        'Pending Payment',
-        `You already have a pending payment for **${product.name}**. Choose your payment method below.`,
+        'Transaksi Pending',
+        `Kamu sudah punya transaksi pending untuk **${product.name}**.${pendingTransaction.status === 'pending_review' ? '\n\n✅ Bukti pembayaran sudah dikirim. Silakan tunggu admin review.' : '\n\n⚠️ Silakan selesaikan pembayaran dan upload bukti transfer.'}`,
         fields
       );
 
-      if (qrCodeBuffer) {
-        embed.setImage('attachment://qris.png');
-      }
-
       embed.setFooter({
-        text: 'Complete your payment or wait for it to expire',
+        text: pendingTransaction.status === 'pending_review' ? 'Menunggu persetujuan admin' : 'Transfer ke rekening dan upload bukti',
         iconURL: QTRADES_LOGO_URL || interaction.client.user.displayAvatarURL()
       });
-
-      // Create refresh button for pending transaction
-      const refreshButton = new ButtonBuilder()
-        .setCustomId(`refresh_payment_${pendingTransaction.orderId}`)
-        .setLabel('🔄 Refresh Payment Status')
-        .setStyle(ButtonStyle.Primary);
-
-      const row = new ActionRowBuilder().addComponents(refreshButton);
-
-      if (qrCodeBuffer) {
-        const qrAttachment = new AttachmentBuilder(qrCodeBuffer, { name: 'qris.png' });
-        return interaction.editReply({ embeds: [embed], files: [qrAttachment], components: [row] });
-      }
 
       return interaction.editReply({ embeds: [embed], components: [row] });
     }
 
     // Generate unique order ID
     const orderId = `ORDER-${Date.now()}-${user.id}`;
-
-    // Create Midtrans transaction
-    const midtransResult = await createTransaction({
-      orderId: orderId,
-      amount: product.price,
-      customerDetails: {
-        first_name: user.username,
-        email: `${user.id}@discord.user`,
-        phone: '08123456789'
-      },
-      itemDetails: [
-        {
-          id: product.id.toString(),
-          price: product.price,
-          quantity: 1,
-          name: product.name
-        }
-      ]
-    });
-
-    if (!midtransResult.success) {
-      return interaction.editReply({
-        embeds: [createErrorEmbed(
-          'Payment Error',
-          'Failed to create payment. Please try again later.'
-        )]
-      });
-    }
 
     // Save transaction to database
     await Transaction.create({
@@ -233,10 +188,7 @@ async function handleBuyProduct(interaction) {
       serverId: guild.id,
       productId: product.id,
       amount: product.price,
-      status: 'pending',
-      paymentUrl: midtransResult.paymentLink,
-      paymentType: 'qris',
-      midtransData: midtransResult
+      status: 'pending'
     });
 
     // Format price
@@ -246,17 +198,37 @@ async function handleBuyProduct(interaction) {
       minimumFractionDigits: 0
     }).format(product.price);
 
-    // Calculate expiry time (Snap default is 24 hours)
-    const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
-    const expiryTimestamp = `<t:${Math.floor(expiryDate.getTime() / 1000)}:R>`;
+    // Get bank details from environment (support multiple accounts)
+    const bankNames = (process.env.BANK_NAMES || process.env.BANK_NAME || 'BCA').split('|');
+    const accountNumbers = (process.env.ACCOUNT_NUMBERS || process.env.ACCOUNT_NUMBER || '1234567890').split('|');
+    const accountHolders = (process.env.ACCOUNT_HOLDERS || process.env.ACCOUNT_HOLDER || 'QTrades Official').split('|');
+
+    // Build bank accounts info (compact format)
+    let bankAccountsText = '';
+
+    for (let i = 0; i < bankNames.length; i++) {
+      const bankName = bankNames[i]?.trim() || 'Bank Tidak Diketahui';
+      const accountNumber = accountNumbers[i]?.trim() || 'N/A';
+      const accountHolder = accountHolders[i]?.trim() || 'Tidak Diketahui';
+
+      if (bankNames.length > 1) {
+        bankAccountsText += `\n**Rekening ${i + 1}:**\n`;
+      }
+
+      bankAccountsText += `🏦 **${bankName}**\n`;
+      bankAccountsText += `💳 \`${accountNumber}\`\n`;
+      bankAccountsText += `👤 ${accountHolder}\n`;
+    }
 
     // Create embed fields
     const embedFields = [
-      { name: 'Product', value: product.name, inline: true },
-      { name: 'Role', value: `${role}`, inline: true },
-      { name: 'Price', value: formattedPrice, inline: true },
-      { name: 'Duration', value: formatDuration(product.duration), inline: true },
-      { name: 'Order ID', value: orderId, inline: false }
+      { name: '📦 Produk', value: product.name, inline: true },
+      { name: '🎭 Role', value: `${role}`, inline: true },
+      { name: '💰 Harga', value: formattedPrice, inline: true },
+      { name: '⏱️ Durasi', value: formatDuration(product.duration), inline: true },
+      { name: '🔖 Order ID', value: `\`${orderId}\``, inline: false },
+      { name: '💳 Info Rekening', value: bankAccountsText.trim(), inline: false },
+      { name: '📝 Cara Pembayaran', value: `**1.** Transfer **${formattedPrice}** ke salah satu rekening di atas\n**2.** Screenshot bukti transfer\n**3.** Klik tombol **Upload Bukti Bayar**\n**4.** Tunggu admin approve`, inline: false }
     ];
 
     // Add extension info if user is extending
@@ -265,57 +237,43 @@ async function handleBuyProduct(interaction) {
       const newExpiry = new Date(currentExpiry.getTime() + parseInt(product.duration));
       const newExpiryTimestamp = Math.floor(newExpiry.getTime() / 1000);
 
-      embedFields.push({
-        name: '🔄 Role Extension',
-        value: `Current Expiry: <t:${currentExpiryTimestamp}:R>\nNew Expiry: <t:${newExpiryTimestamp}:R>\n**+${formatDuration(product.duration)}** will be added to your current time!`,
+      embedFields.splice(4, 0, {
+        name: '🔄 Perpanjangan Role',
+        value: `Kadaluarsa Saat Ini: <t:${currentExpiryTimestamp}:R>\nKadaluarsa Baru: <t:${newExpiryTimestamp}:R>\nDurasi ditambah **+${formatDuration(product.duration)}**`,
         inline: false
       });
     }
 
-    embedFields.push(
-      { name: 'Payment Expires', value: expiryTimestamp, inline: false },
-      { name: '\u200B', value: '**Payment Options:**', inline: false },
-      { name: '📱 Option 1: Scan QR Code', value: 'Scan the QR code below with any e-wallet app', inline: false },
-      { name: '🌐 Option 2: Payment Link', value: `[Click here to open payment page](${midtransResult.paymentLink})`, inline: false }
-    );
-
-    // Create embed with QR code and payment link
     const embed = createSuccessEmbed(
-      isExtension ? 'Extend Role Duration' : 'Payment Created',
-      `Choose your payment method for **${product.name}**`,
+      isExtension ? 'Perpanjang Durasi Role' : 'Instruksi Pembayaran',
+      `Silakan transfer untuk menyelesaikan pembelian **${product.name}**`,
       embedFields
     );
 
-    embed.setImage('attachment://qris.png')
-      .setFooter({
-        text: 'Choose either method • Role will be assigned automatically after payment',
-        iconURL: QTRADES_LOGO_URL || interaction.client.user.displayAvatarURL()
-      })
-      .setThumbnail(QTRADES_LOGO_URL || role.iconURL() || guild.iconURL({ dynamic: true }));
+    embed.setFooter({
+      text: 'Role akan diberikan setelah admin approve pembayaran',
+      iconURL: QTRADES_LOGO_URL || interaction.client.user.displayAvatarURL()
+    })
+    .setThumbnail(QTRADES_LOGO_URL || role.iconURL() || guild.iconURL({ dynamic: true }));
 
-    // Create attachment from QR code buffer
-    const qrAttachment = new AttachmentBuilder(midtransResult.qrCodeBuffer, { name: 'qris.png' });
-
-    // Create refresh button
-    const refreshButton = new ButtonBuilder()
-      .setCustomId(`refresh_payment_${orderId}`)
-      .setLabel('🔄 Refresh Payment Status')
+    // Create upload proof button
+    const uploadButton = new ButtonBuilder()
+      .setCustomId(`upload_proof_${orderId}`)
+      .setLabel('📤 Upload Bukti Bayar')
       .setStyle(ButtonStyle.Primary);
 
-    const row = new ActionRowBuilder().addComponents(refreshButton);
+    const row = new ActionRowBuilder().addComponents(uploadButton);
 
     await interaction.editReply({
       embeds: [embed],
-      files: [qrAttachment],
       components: [row]
     });
 
-    // Also send DM with QR code
+    // Also send DM
     try {
-      const dmQrAttachment = new AttachmentBuilder(midtransResult.qrCodeBuffer, { name: 'qris.png' });
       await user.send({
         embeds: [embed],
-        files: [dmQrAttachment]
+        components: [row]
       });
     } catch (error) {
       console.log(`Could not send DM to ${user.tag}`);
@@ -328,6 +286,304 @@ async function handleBuyProduct(interaction) {
         'Error',
         'An error occurred while processing your request. Please try again.'
       )]
+    });
+  }
+}
+
+async function handleUploadProof(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const orderId = interaction.customId.replace('upload_proof_', '');
+  const guild = interaction.guild;
+  const user = interaction.user;
+
+  try {
+    // Get temp upload channel
+    const tempChannelId = process.env.PAYMENT_UPLOAD_CHANNEL_ID;
+
+    if (!tempChannelId) {
+      return interaction.editReply({
+        embeds: [createErrorEmbed(
+          'Channel Tidak Dikonfigurasi',
+          'Admin belum setup channel untuk upload bukti pembayaran. Silakan hubungi admin.'
+        )]
+      });
+    }
+
+    const tempChannel = guild.channels.cache.get(tempChannelId);
+
+    if (!tempChannel) {
+      return interaction.editReply({
+        embeds: [createErrorEmbed(
+          'Channel Tidak Ditemukan',
+          'Channel upload tidak ditemukan. Silakan hubungi admin.'
+        )]
+      });
+    }
+
+    // Create instruction message in temp channel
+    const instructionEmbed = createInfoEmbed(
+      '📤 Upload Bukti Pembayaran',
+      `<@${user.id}>, silakan **upload gambar** bukti transfer kamu di channel ini.\n\n**Order ID:** \`${orderId}\`\n\n⚠️ **Penting:**\n• Upload **HANYA 1 GAMBAR** bukti transfer\n• Setelah upload, gambar akan otomatis dikirim ke admin\n• Pesan ini dan gambar akan otomatis dihapus\n• Jangan upload gambar lain selain bukti pembayaran`,
+      [
+        { name: '⏱️ Batas Waktu', value: '5 menit', inline: true },
+        { name: '🔖 Order ID', value: `\`${orderId}\``, inline: true }
+      ]
+    );
+
+    instructionEmbed.setFooter({
+      text: 'Upload gambar sekarang, bot menunggu...',
+      iconURL: user.displayAvatarURL()
+    });
+
+    const instructionMsg = await tempChannel.send({
+      content: `<@${user.id}>`,
+      embeds: [instructionEmbed]
+    });
+
+    // Send confirmation to user
+    const confirmEmbed = createSuccessEmbed(
+      'Channel Upload Siap',
+      `Silakan upload bukti pembayaran kamu di ${tempChannel}`,
+      [
+        { name: '📍 Channel', value: `${tempChannel}`, inline: true },
+        { name: '⏱️ Waktu', value: '5 menit', inline: true }
+      ]
+    );
+
+    await interaction.editReply({ embeds: [confirmEmbed] });
+
+    // Store pending upload in memory (simple approach)
+    if (!interaction.client.pendingUploads) {
+      interaction.client.pendingUploads = new Map();
+    }
+
+    interaction.client.pendingUploads.set(user.id, {
+      orderId: orderId,
+      instructionMsgId: instructionMsg.id,
+      tempChannelId: tempChannel.id,
+      expiresAt: Date.now() + 5 * 60 * 1000 // 5 minutes
+    });
+
+    // Auto cleanup after 5 minutes
+    setTimeout(async () => {
+      const pending = interaction.client.pendingUploads.get(user.id);
+      if (pending && pending.orderId === orderId) {
+        interaction.client.pendingUploads.delete(user.id);
+        try {
+          await instructionMsg.delete();
+        } catch (error) {
+          console.log('Instruction message already deleted');
+        }
+      }
+    }, 5 * 60 * 1000);
+
+  } catch (error) {
+    console.error('Error handling upload proof:', error);
+    return interaction.editReply({
+      embeds: [createErrorEmbed('Error', 'Terjadi kesalahan. Silakan coba lagi.')]
+    });
+  }
+}
+
+
+async function handleApprovePayment(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const orderId = interaction.customId.replace('approve_payment_', '');
+
+  try {
+    const transaction = await Transaction.findOne({
+      where: { orderId: orderId },
+      include: [{
+        model: Product,
+        as: 'product'
+      }]
+    });
+
+    if (!transaction) {
+      return interaction.editReply({
+        embeds: [createErrorEmbed('Transaksi Tidak Ditemukan', 'Tidak dapat menemukan transaksi ini.')]
+      });
+    }
+
+    if (transaction.status === 'approved') {
+      return interaction.editReply({
+        embeds: [createInfoEmbed('Sudah Disetujui', 'Pembayaran ini sudah disetujui sebelumnya.')]
+      });
+    }
+
+    // Update transaction
+    await transaction.update({
+      status: 'approved',
+      paidAt: new Date(),
+      reviewedBy: interaction.user.id,
+      reviewedAt: new Date()
+    });
+
+    const guild = interaction.guild;
+    const product = transaction.product;
+    const role = guild.roles.cache.get(product.roleId);
+
+    if (!role) {
+      return interaction.editReply({
+        embeds: [createErrorEmbed('Role Tidak Ditemukan', 'Role untuk produk ini sudah tidak ada.')]
+      });
+    }
+
+    // Assign role to user
+    const member = await guild.members.fetch(transaction.userId);
+    await member.roles.add(role);
+
+    // Calculate expiry
+    const expiryDate = new Date(Date.now() + parseInt(product.duration));
+
+    // Create temporary role entry
+    await TemporaryRole.create({
+      serverId: guild.id,
+      userId: transaction.userId,
+      roleId: role.id,
+      grantedAt: new Date(),
+      expiresAt: expiryDate,
+      grantedBy: interaction.user.id,
+      reason: `Pembelian: ${product.name}`
+    });
+
+    // Format price
+    const formattedPrice = new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(transaction.amount);
+
+    // Notify user
+    try {
+      const user = await interaction.client.users.fetch(transaction.userId);
+      const userEmbed = createSuccessEmbed(
+        'Pembayaran Disetujui!',
+        `Pembayaran kamu telah disetujui dan ${role} sudah diberikan!`,
+        [
+          { name: '📦 Produk', value: product.name, inline: true },
+          { name: '💰 Jumlah', value: formattedPrice, inline: true },
+          { name: '⏱️ Durasi', value: formatDuration(product.duration), inline: true },
+          { name: '⏳ Kadaluarsa', value: `<t:${Math.floor(expiryDate.getTime() / 1000)}:R>`, inline: true }
+        ]
+      );
+
+      await user.send({ embeds: [userEmbed] });
+    } catch (error) {
+      console.log('Could not send DM to user');
+    }
+
+    // Update original message
+    if (interaction.message) {
+      await interaction.message.edit({ components: [] });
+    }
+
+    const adminEmbed = createSuccessEmbed(
+      'Pembayaran Disetujui',
+      `Pembayaran disetujui dan ${role} diberikan ke <@${transaction.userId}>`,
+      [
+        { name: '🔖 Order ID', value: `\`${orderId}\``, inline: true },
+        { name: '👮 Disetujui oleh', value: `<@${interaction.user.id}>`, inline: true }
+      ]
+    );
+
+    await interaction.editReply({ embeds: [adminEmbed] });
+
+  } catch (error) {
+    console.error('Error approving payment:', error);
+    return interaction.editReply({
+      embeds: [createErrorEmbed('Error', 'Gagal menyetujui pembayaran. Silakan coba lagi.')]
+    });
+  }
+}
+
+async function handleRejectPayment(interaction) {
+  const orderId = interaction.customId.replace('reject_payment_', '');
+
+  // Show modal for rejection reason
+  const modal = new ModalBuilder()
+    .setCustomId(`reject_reason_modal_${orderId}`)
+    .setTitle('Tolak Pembayaran');
+
+  const reasonInput = new TextInputBuilder()
+    .setCustomId('rejection_reason')
+    .setLabel('Alasan Penolakan')
+    .setStyle(TextInputStyle.Paragraph)
+    .setPlaceholder('Masukkan alasan mengapa pembayaran ditolak...')
+    .setRequired(true)
+    .setMaxLength(500);
+
+  const row = new ActionRowBuilder().addComponents(reasonInput);
+  modal.addComponents(row);
+
+  await interaction.showModal(modal);
+}
+
+async function handleRejectReasonSubmit(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const orderId = interaction.customId.replace('reject_reason_modal_', '');
+  const rejectionReason = interaction.fields.getTextInputValue('rejection_reason');
+
+  try {
+    const transaction = await Transaction.findOne({
+      where: { orderId: orderId },
+      include: [{
+        model: Product,
+        as: 'product'
+      }]
+    });
+
+    if (!transaction) {
+      return interaction.editReply({
+        embeds: [createErrorEmbed('Transaksi Tidak Ditemukan', 'Tidak dapat menemukan transaksi ini.')]
+      });
+    }
+
+    // Update transaction
+    await transaction.update({
+      status: 'rejected',
+      rejectionReason: rejectionReason,
+      reviewedBy: interaction.user.id,
+      reviewedAt: new Date()
+    });
+
+    // Notify user
+    try {
+      const user = await interaction.client.users.fetch(transaction.userId);
+      const userEmbed = createErrorEmbed(
+        'Pembayaran Ditolak',
+        `Pembayaran kamu untuk **${transaction.product.name}** ditolak oleh admin.\n\n**Alasan:** ${rejectionReason}\n\nSilakan hubungi admin untuk info lebih lanjut atau kirim ulang bukti pembayaran yang benar.`
+      );
+
+      await user.send({ embeds: [userEmbed] });
+    } catch (error) {
+      console.log('Could not send DM to user');
+    }
+
+    // Update original message
+    if (interaction.message) {
+      await interaction.message.edit({ components: [] });
+    }
+
+    const adminEmbed = createWarningEmbed(
+      'Pembayaran Ditolak',
+      `Pembayaran ditolak untuk <@${transaction.userId}>\n\n**Alasan:** ${rejectionReason}`
+    );
+
+    adminEmbed.addFields([
+      { name: '🔖 Order ID', value: `\`${orderId}\``, inline: true },
+      { name: '👮 Ditolak oleh', value: `<@${interaction.user.id}>`, inline: true }
+    ]);
+
+    await interaction.editReply({ embeds: [adminEmbed] });
+
+  } catch (error) {
+    console.error('Error rejecting payment:', error);
+    return interaction.editReply({
+      embeds: [createErrorEmbed('Error', 'Gagal menolak pembayaran. Silakan coba lagi.')]
     });
   }
 }

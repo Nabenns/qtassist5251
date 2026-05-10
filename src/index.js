@@ -6,7 +6,6 @@ require('dotenv').config();
 const { testConnection } = require('./database/sequelize');
 const { initDatabase } = require('./database/models');
 const { startCronJobs } = require('./services/cronService');
-const { startWebhookServer } = require('./services/webhookServer');
 
 // Create Discord client
 const client = new Client({
@@ -85,9 +84,6 @@ async function init() {
 
     // Start cron jobs
     startCronJobs(client);
-
-    // Start webhook server for payment notifications
-    startWebhookServer(client);
 
     // Login to Discord
     await client.login(process.env.DISCORD_TOKEN);

@@ -38,30 +38,40 @@ const Transaction = sequelize.define('Transaction', {
     comment: 'Amount in IDR'
   },
   status: {
-    type: DataTypes.ENUM('pending', 'paid', 'expired', 'cancelled', 'failed'),
+    type: DataTypes.ENUM('pending', 'pending_review', 'approved', 'rejected', 'expired', 'cancelled'),
     defaultValue: 'pending',
-    allowNull: false
+    allowNull: false,
+    comment: 'pending = waiting payment, pending_review = waiting admin approval, approved = role assigned, rejected = payment rejected'
   },
-  paymentUrl: {
+  paymentProofUrl: {
     type: DataTypes.TEXT,
     allowNull: true,
-    field: 'payment_url'
+    field: 'payment_proof_url',
+    comment: 'Discord attachment URL of payment proof'
   },
-  paymentType: {
+  reviewedBy: {
     type: DataTypes.STRING,
     allowNull: true,
-    field: 'payment_type'
+    field: 'reviewed_by',
+    comment: 'Admin user ID who approved/rejected'
+  },
+  reviewedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'reviewed_at',
+    comment: 'When admin reviewed the payment'
+  },
+  rejectionReason: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    field: 'rejection_reason',
+    comment: 'Reason for rejection (optional)'
   },
   paidAt: {
     type: DataTypes.DATE,
     allowNull: true,
-    field: 'paid_at'
-  },
-  midtransData: {
-    type: DataTypes.JSON,
-    allowNull: true,
-    field: 'midtrans_data',
-    comment: 'Raw Midtrans response data'
+    field: 'paid_at',
+    comment: 'When payment was approved'
   }
 }, {
   tableName: 'transactions',

@@ -11,8 +11,8 @@ Transaction.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
 // Initialize database and sync models
 const initDatabase = async () => {
   try {
-    // Sync all models
-    await sequelize.sync({ alter: true });
+    // Sync all models (without alter - use migrations instead)
+    await sequelize.sync();
     console.log('✅ Database models synchronized.');
   } catch (error) {
     console.error('❌ Error syncing database models:', error);

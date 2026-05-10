@@ -45,7 +45,7 @@ module.exports = {
       const shopEmbed = new EmbedBuilder()
         .setColor(COLORS.PRIMARY)
         .setTitle('🛒 QTrades Role Shop')
-        .setDescription('Purchase exclusive roles with various durations!\n\n**How to purchase:**\n1. Click the button below for the role you want\n2. Complete payment via QRIS\n3. Role will be assigned automatically after payment\n\n**Available Packages:**')
+        .setDescription('Purchase exclusive roles with various durations!\n\n**How to purchase:**\n1. Click the button below for the role you want\n2. Transfer to the provided bank account\n3. Upload payment proof\n4. Wait for admin approval\n5. Role will be assigned after approval\n\n**Available Packages:**')
         .setTimestamp();
 
       // Add products to embed
@@ -67,7 +67,7 @@ module.exports = {
       }
 
       shopEmbed.setFooter({
-        text: 'QTrades - Secure Payment via Midtrans',
+        text: 'QTrades - Manual Bank Transfer',
         iconURL: QTRADES_LOGO_URL || guild.iconURL({ dynamic: true })
       });
 
