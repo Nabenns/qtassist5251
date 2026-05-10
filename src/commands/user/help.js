@@ -88,18 +88,23 @@ module.exports = {
       inline: false
     });
 
-    // Email Registration
+    // Email Registration & Drive
     embed.addFields({
-      name: '📧 **Email Registration**',
+      name: '📧 **Email Registration & Google Drive**',
       value: [
         '**Untuk User:**',
         '• Klik button "📧 Daftar Email"',
         '• Input email untuk akses video/drive',
         '• `/my-email` - Cek email terdaftar',
+        '• Auto-dapat akses Google Drive (jika enabled)',
         '',
         '**Untuk Admin:**',
         '`/email-setup #channel` - Setup pendaftaran email',
-        '`/email-list` - Lihat semua email terdaftar'
+        '`/email-list [page]` - Lihat semua email terdaftar',
+        '`/drive-setup add <id>` - Tambah Drive folder untuk auto-share',
+        '`/drive-setup list` - Lihat config Drive',
+        '`/drive-setup enable` - Aktifkan auto-share',
+        '`/drive-setup role <permission>` - Set permission level'
       ].join('\n'),
       inline: false
     });

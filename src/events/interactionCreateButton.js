@@ -1,8 +1,9 @@
-const { Product, Transaction, TemporaryRole, EmailBinding } = require('../database/models');
+const { Product, Transaction, TemporaryRole, EmailBinding, DriveConfig } = require('../database/models');
 const { createSuccessEmbed, createErrorEmbed, createInfoEmbed, createWarningEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 const { formatDuration } = require('../utils/parseDuration');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { syncTransactionToSheets } = require('../services/googleSheetsService');
+const { shareMultipleDriveFiles, revokeMultipleDriveAccess } = require('../services/googleDriveService');
 
 module.exports = {
   name: 'interactionCreate',
@@ -702,12 +703,56 @@ async function handleEmailModalSubmit(interaction) {
       }
     });
 
+    // Get Drive config for auto-share
+    const driveConfig = await DriveConfig.findOne({
+      where: { serverId: interaction.guild.id }
+    });
+
     if (existingBinding) {
       // Update existing email
       const oldEmail = existingBinding.email;
       existingBinding.email = email;
       existingBinding.updatedAt = new Date();
       await existingBinding.save();
+
+      // Handle Drive auto-share if enabled
+      if (driveConfig && driveConfig.autoShareEnabled && driveConfig.driveFileIds) {
+        const driveIds = driveConfig.driveFileIds.split(',').filter(id => id);
+
+        if (driveIds.length > 0) {
+          // Revoke old email and share with new email
+          try {
+            await revokeMultipleDriveAccess(driveIds, oldEmail);
+            const results = await shareMultipleDriveFiles(driveIds, email, driveConfig.shareRole);
+
+            const successCount = results.filter(r => r.success).length;
+
+            return interaction.editReply({
+              embeds: [createSuccessEmbed(
+                'Email Berhasil Diperbarui',
+                `Email kamu berhasil diperbarui!\n\n` +
+                `**Email Lama:** ${oldEmail}\n` +
+                `**Email Baru:** ${email}\n\n` +
+                `🔄 **Google Drive Auto-Share:**\n` +
+                `✅ Akses diperbarui untuk ${successCount}/${driveIds.length} Drive folder/file.\n\n` +
+                `Cek email kamu untuk link akses Google Drive!`
+              )]
+            });
+          } catch (error) {
+            console.error('Error updating Drive access:', error);
+            // Still show success for email update even if Drive fails
+            return interaction.editReply({
+              embeds: [createSuccessEmbed(
+                'Email Berhasil Diperbarui',
+                `Email kamu berhasil diperbarui!\n\n` +
+                `**Email Lama:** ${oldEmail}\n` +
+                `**Email Baru:** ${email}\n\n` +
+                `⚠️ Terjadi kesalahan saat update akses Drive. Hubungi admin.`
+              )]
+            });
+          }
+        }
+      }
 
       return interaction.editReply({
         embeds: [createSuccessEmbed(
@@ -727,6 +772,43 @@ async function handleEmailModalSubmit(interaction) {
         registeredAt: new Date(),
         updatedAt: new Date()
       });
+
+      // Handle Drive auto-share if enabled
+      if (driveConfig && driveConfig.autoShareEnabled && driveConfig.driveFileIds) {
+        const driveIds = driveConfig.driveFileIds.split(',').filter(id => id);
+
+        if (driveIds.length > 0) {
+          try {
+            const results = await shareMultipleDriveFiles(driveIds, email, driveConfig.shareRole);
+
+            const successCount = results.filter(r => r.success).length;
+
+            return interaction.editReply({
+              embeds: [createSuccessEmbed(
+                'Email Berhasil Didaftarkan',
+                `Email kamu berhasil didaftarkan!\n\n` +
+                `**Email:** ${email}\n\n` +
+                `🎉 **Google Drive Auto-Share:**\n` +
+                `✅ Kamu mendapat akses ke ${successCount}/${driveIds.length} Drive folder/file!\n\n` +
+                `Cek email kamu untuk link akses Google Drive.\n\n` +
+                `Gunakan command \`/my-email\` untuk melihat email terdaftar.`
+              )]
+            });
+          } catch (error) {
+            console.error('Error sharing Drive access:', error);
+            // Still show success for email registration even if Drive fails
+            return interaction.editReply({
+              embeds: [createSuccessEmbed(
+                'Email Berhasil Didaftarkan',
+                `Email kamu berhasil didaftarkan!\n\n` +
+                `**Email:** ${email}\n\n` +
+                `⚠️ Terjadi kesalahan saat memberikan akses Drive. Hubungi admin.\n\n` +
+                `Gunakan command \`/my-email\` untuk melihat email terdaftar.`
+              )]
+            });
+          }
+        }
+      }
 
       return interaction.editReply({
         embeds: [createSuccessEmbed(

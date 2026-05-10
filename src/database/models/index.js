@@ -4,6 +4,7 @@ const ModerationLog = require('./ModerationLog');
 const Product = require('./Product');
 const Transaction = require('./Transaction');
 const EmailBinding = require('./EmailBinding');
+const DriveConfig = require('./DriveConfig');
 
 // Define associations
 Product.hasMany(Transaction, { foreignKey: 'productId', as: 'transactions' });
@@ -28,5 +29,6 @@ module.exports = {
   Product,
   Transaction,
   EmailBinding,
+  DriveConfig,
   initDatabase
 };
