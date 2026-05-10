@@ -3,6 +3,7 @@ const TemporaryRole = require('./TemporaryRole');
 const ModerationLog = require('./ModerationLog');
 const Product = require('./Product');
 const Transaction = require('./Transaction');
+const EmailBinding = require('./EmailBinding');
 
 // Define associations
 Product.hasMany(Transaction, { foreignKey: 'productId', as: 'transactions' });
@@ -26,5 +27,6 @@ module.exports = {
   ModerationLog,
   Product,
   Transaction,
+  EmailBinding,
   initDatabase
 };

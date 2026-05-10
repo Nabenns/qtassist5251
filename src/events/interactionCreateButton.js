@@ -1,4 +1,4 @@
-const { Product, Transaction, TemporaryRole } = require('../database/models');
+const { Product, Transaction, TemporaryRole, EmailBinding } = require('../database/models');
 const { createSuccessEmbed, createErrorEmbed, createInfoEmbed, createWarningEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 const { formatDuration } = require('../utils/parseDuration');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
@@ -29,6 +29,11 @@ module.exports = {
         if (interaction.customId.startsWith('reject_payment_')) {
           await handleRejectPayment(interaction);
         }
+
+        // Handle email registration button
+        if (interaction.customId === 'email_register') {
+          await handleEmailRegister(interaction);
+        }
       } catch (error) {
         console.error('Error handling button interaction:', error);
 
@@ -55,6 +60,10 @@ module.exports = {
       try {
         if (interaction.customId.startsWith('reject_reason_modal_')) {
           await handleRejectReasonSubmit(interaction);
+        }
+
+        if (interaction.customId === 'email_modal') {
+          await handleEmailModalSubmit(interaction);
         }
       } catch (error) {
         console.error('Error handling modal submission:', error);
@@ -599,6 +608,144 @@ async function handleRejectReasonSubmit(interaction) {
     console.error('Error rejecting payment:', error);
     return interaction.editReply({
       embeds: [createErrorEmbed('Error', 'Gagal menolak pembayaran. Silakan coba lagi.')]
+    });
+  }
+}
+
+/**
+ * Handle email registration button click
+ */
+async function handleEmailRegister(interaction) {
+  try {
+    // Check if user already has email registered
+    const existingBinding = await EmailBinding.findOne({
+      where: {
+        serverId: interaction.guild.id,
+        userId: interaction.user.id
+      }
+    });
+
+    // Create modal for email input
+    const modal = new ModalBuilder()
+      .setCustomId('email_modal')
+      .setTitle('Daftar Email untuk Akses Konten');
+
+    const emailInput = new TextInputBuilder()
+      .setCustomId('email_input')
+      .setLabel('Email Address')
+      .setPlaceholder('contoh@gmail.com')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true)
+      .setMaxLength(255);
+
+    // Pre-fill dengan email yang sudah ada jika user sudah pernah daftar
+    if (existingBinding) {
+      emailInput.setValue(existingBinding.email);
+    }
+
+    const row = new ActionRowBuilder().addComponents(emailInput);
+    modal.addComponents(row);
+
+    await interaction.showModal(modal);
+
+  } catch (error) {
+    console.error('Error showing email modal:', error);
+    await interaction.reply({
+      embeds: [createErrorEmbed('Error', 'Gagal membuka form pendaftaran email.')],
+      ephemeral: true
+    });
+  }
+}
+
+/**
+ * Handle email modal submission
+ */
+async function handleEmailModalSubmit(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const email = interaction.fields.getTextInputValue('email_input').trim();
+
+  try {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return interaction.editReply({
+        embeds: [createErrorEmbed(
+          'Format Email Tidak Valid',
+          'Mohon masukkan alamat email yang valid.\n\nContoh: `user@gmail.com`'
+        )]
+      });
+    }
+
+    // Check if email is already used by another user
+    const emailTaken = await EmailBinding.findOne({
+      where: {
+        serverId: interaction.guild.id,
+        email: email
+      }
+    });
+
+    if (emailTaken && emailTaken.userId !== interaction.user.id) {
+      return interaction.editReply({
+        embeds: [createErrorEmbed(
+          'Email Sudah Terdaftar',
+          'Email ini sudah digunakan oleh member lain.\n\nSilakan gunakan email yang berbeda.'
+        )]
+      });
+    }
+
+    // Check if user already has email registered
+    const existingBinding = await EmailBinding.findOne({
+      where: {
+        serverId: interaction.guild.id,
+        userId: interaction.user.id
+      }
+    });
+
+    if (existingBinding) {
+      // Update existing email
+      const oldEmail = existingBinding.email;
+      existingBinding.email = email;
+      existingBinding.updatedAt = new Date();
+      await existingBinding.save();
+
+      return interaction.editReply({
+        embeds: [createSuccessEmbed(
+          'Email Berhasil Diperbarui',
+          `Email kamu berhasil diperbarui!\n\n` +
+          `**Email Lama:** ${oldEmail}\n` +
+          `**Email Baru:** ${email}\n\n` +
+          `Gunakan command \`/my-email\` untuk melihat email terdaftar.`
+        )]
+      });
+    } else {
+      // Create new binding
+      await EmailBinding.create({
+        serverId: interaction.guild.id,
+        userId: interaction.user.id,
+        email: email,
+        registeredAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      return interaction.editReply({
+        embeds: [createSuccessEmbed(
+          'Email Berhasil Didaftarkan',
+          `Email kamu berhasil didaftarkan!\n\n` +
+          `**Email:** ${email}\n\n` +
+          `Email ini akan digunakan untuk memberikan akses ke konten eksklusif.\n\n` +
+          `Gunakan command \`/my-email\` untuk melihat email terdaftar.`
+        )]
+      });
+    }
+
+  } catch (error) {
+    console.error('Error processing email registration:', error);
+    return interaction.editReply({
+      embeds: [createErrorEmbed(
+        'Error',
+        'Terjadi kesalahan saat memproses pendaftaran email. Silakan coba lagi.'
+      )]
     });
   }
 }

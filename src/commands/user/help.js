@@ -19,6 +19,7 @@ module.exports = {
       value: [
         '`/my-roles` - Cek role temporary kamu dan kapan kadaluarsanya',
         '`/my-purchases` - Lihat riwayat pembelian kamu',
+        '`/my-email` - Cek email terdaftar untuk akses konten',
         '`/help` - Tampilkan menu bantuan ini'
       ].join('\n'),
       inline: false
@@ -83,6 +84,22 @@ module.exports = {
         '',
         '`/transaction-cancel <order_id>`',
         '├ Cancel/batalkan transaksi'
+      ].join('\n'),
+      inline: false
+    });
+
+    // Email Registration
+    embed.addFields({
+      name: '📧 **Email Registration**',
+      value: [
+        '**Untuk User:**',
+        '• Klik button "📧 Daftar Email"',
+        '• Input email untuk akses video/drive',
+        '• `/my-email` - Cek email terdaftar',
+        '',
+        '**Untuk Admin:**',
+        '`/email-setup #channel` - Setup pendaftaran email',
+        '`/email-list` - Lihat semua email terdaftar'
       ].join('\n'),
       inline: false
     });
