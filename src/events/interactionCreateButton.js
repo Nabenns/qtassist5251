@@ -2,6 +2,7 @@ const { Product, Transaction, TemporaryRole } = require('../database/models');
 const { createSuccessEmbed, createErrorEmbed, createInfoEmbed, createWarningEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 const { formatDuration } = require('../utils/parseDuration');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { syncTransactionToSheets } = require('../services/googleSheetsService');
 
 module.exports = {
   name: 'interactionCreate',
@@ -491,6 +492,13 @@ async function handleApprovePayment(interaction) {
 
     await interaction.editReply({ embeds: [adminEmbed] });
 
+    // Sync to Google Sheets
+    try {
+      await syncTransactionToSheets(transaction, guild);
+    } catch (error) {
+      console.log('Could not sync to Google Sheets:', error.message);
+    }
+
   } catch (error) {
     console.error('Error approving payment:', error);
     return interaction.editReply({
@@ -579,6 +587,13 @@ async function handleRejectReasonSubmit(interaction) {
     ]);
 
     await interaction.editReply({ embeds: [adminEmbed] });
+
+    // Sync to Google Sheets
+    try {
+      await syncTransactionToSheets(transaction, interaction.guild);
+    } catch (error) {
+      console.log('Could not sync to Google Sheets:', error.message);
+    }
 
   } catch (error) {
     console.error('Error rejecting payment:', error);

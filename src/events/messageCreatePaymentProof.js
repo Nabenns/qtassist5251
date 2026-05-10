@@ -2,6 +2,7 @@ const { Product, Transaction } = require('../database/models');
 const { createSuccessEmbed, createErrorEmbed, createInfoEmbed } = require('../utils/embedBuilder');
 const { formatDuration } = require('../utils/parseDuration');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { syncTransactionToSheets } = require('../services/googleSheetsService');
 
 module.exports = {
   name: 'messageCreate',
@@ -145,6 +146,13 @@ module.exports = {
 
       // Remove from pending
       message.client.pendingUploads.delete(message.author.id);
+
+      // Sync to Google Sheets
+      try {
+        await syncTransactionToSheets(transaction, message.guild);
+      } catch (error) {
+        console.log('Could not sync to Google Sheets:', error.message);
+      }
 
     } catch (error) {
       console.error('Error processing payment proof upload:', error);
