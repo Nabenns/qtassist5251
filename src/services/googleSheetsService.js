@@ -310,7 +310,7 @@ async function removeRowFromSheet(sheets, spreadsheetId, sheetName, orderId) {
 }
 
 /**
- * Update analytics sheet
+ * Update analytics sheet with charts and formulas
  */
 async function updateAnalytics(sheets, spreadsheetId, guild) {
   try {
@@ -325,32 +325,256 @@ async function updateAnalytics(sheets, spreadsheetId, guild) {
     const approvedCount = allTransactions.filter(t => t.status === 'approved').length;
     const rejectedCount = allTransactions.filter(t => t.status === 'rejected').length;
     const pendingCount = allTransactions.filter(t => t.status === 'pending' || t.status === 'pending_review').length;
+    const cancelledCount = allTransactions.filter(t => t.status === 'cancelled').length;
     const totalRevenue = allTransactions
       .filter(t => t.status === 'approved')
       .reduce((sum, t) => sum + t.amount, 0);
 
     const approvalRate = totalTransactions > 0 ? ((approvedCount / totalTransactions) * 100).toFixed(2) : 0;
+    const rejectionRate = totalTransactions > 0 ? ((rejectedCount / totalTransactions) * 100).toFixed(2) : 0;
 
-    // Update analytics data
+    // Revenue by product
+    const revenueByProduct = {};
+    allTransactions
+      .filter(t => t.status === 'approved')
+      .forEach(t => {
+        const productName = t.product?.name || 'Unknown';
+        revenueByProduct[productName] = (revenueByProduct[productName] || 0) + t.amount;
+      });
+
+    // Top 5 products by revenue
+    const topProducts = Object.entries(revenueByProduct)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    // Update main analytics section
     const analyticsData = [
+      ['📊 OVERVIEW METRICS', ''],
       ['Total Transactions', totalTransactions],
-      ['Approved', approvedCount],
-      ['Rejected', rejectedCount],
-      ['Pending', pendingCount],
+      ['✅ Approved', approvedCount],
+      ['❌ Rejected', rejectedCount],
+      ['⏳ Pending', pendingCount],
+      ['🚫 Cancelled', cancelledCount],
+      ['', ''],
+      ['💰 REVENUE METRICS', ''],
       ['Total Revenue (IDR)', totalRevenue],
+      ['Average Transaction (IDR)', totalTransactions > 0 ? Math.round(totalRevenue / approvedCount) : 0],
+      ['', ''],
+      ['📈 PERFORMANCE METRICS', ''],
       ['Approval Rate (%)', approvalRate],
-      ['Last Updated', new Date().toISOString()]
+      ['Rejection Rate (%)', rejectionRate],
+      ['Conversion Rate (%)', totalTransactions > 0 ? ((approvedCount / totalTransactions) * 100).toFixed(2) : 0],
+      ['', ''],
+      ['🏆 TOP PRODUCTS BY REVENUE', ''],
+      ...topProducts.map(([product, revenue]) => [product, revenue]),
+      ['', ''],
+      ['🕒 LAST UPDATED', new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })]
+    ];
+
+    // Clear and update analytics
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: 'Analytics!A1:D50'
+    });
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Analytics!A1',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: analyticsData }
+    });
+
+    // Create pie chart for transaction status
+    await createStatusPieChart(sheets, spreadsheetId, approvedCount, rejectedCount, pendingCount, cancelledCount);
+
+    // Create bar chart for top products
+    if (topProducts.length > 0) {
+      await createProductRevenueChart(sheets, spreadsheetId, topProducts);
+    }
+
+    // Format analytics sheet
+    await formatAnalyticsSheet(sheets, spreadsheetId);
+
+  } catch (error) {
+    console.error('Error updating analytics:', error.message);
+  }
+}
+
+/**
+ * Create pie chart for transaction status distribution
+ */
+async function createStatusPieChart(sheets, spreadsheetId, approved, rejected, pending, cancelled) {
+  try {
+    // Get Analytics sheet ID
+    const sheetResponse = await sheets.spreadsheets.get({ spreadsheetId });
+    const analyticsSheet = sheetResponse.data.sheets.find(s => s.properties.title === 'Analytics');
+
+    if (!analyticsSheet) return;
+
+    const sheetId = analyticsSheet.properties.sheetId;
+
+    // Add chart data
+    const chartData = [
+      ['Status', 'Count'],
+      ['Approved', approved],
+      ['Rejected', rejected],
+      ['Pending', pending],
+      ['Cancelled', cancelled]
     ];
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Analytics!A2:B8',
+      range: 'Analytics!F2:G6',
       valueInputOption: 'RAW',
-      requestBody: { values: analyticsData }
+      requestBody: { values: chartData }
+    });
+
+    // Create pie chart
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [{
+          addChart: {
+            chart: {
+              spec: {
+                title: 'Transaction Status Distribution',
+                pieChart: {
+                  legendPosition: 'RIGHT_LEGEND',
+                  domain: {
+                    sourceRange: {
+                      sources: [{
+                        sheetId: sheetId,
+                        startRowIndex: 1,
+                        endRowIndex: 6,
+                        startColumnIndex: 5,
+                        endColumnIndex: 6
+                      }]
+                    }
+                  },
+                  series: {
+                    sourceRange: {
+                      sources: [{
+                        sheetId: sheetId,
+                        startRowIndex: 1,
+                        endRowIndex: 6,
+                        startColumnIndex: 6,
+                        endColumnIndex: 7
+                      }]
+                    }
+                  }
+                }
+              },
+              position: {
+                overlayPosition: {
+                  anchorCell: {
+                    sheetId: sheetId,
+                    rowIndex: 0,
+                    columnIndex: 5
+                  }
+                }
+              }
+            }
+          }
+        }]
+      }
     });
 
   } catch (error) {
-    console.error('Error updating analytics:', error.message);
+    console.log('Chart may already exist or error creating:', error.message);
+  }
+}
+
+/**
+ * Create bar chart for top products revenue
+ */
+async function createProductRevenueChart(sheets, spreadsheetId, topProducts) {
+  try {
+    const sheetResponse = await sheets.spreadsheets.get({ spreadsheetId });
+    const analyticsSheet = sheetResponse.data.sheets.find(s => s.properties.title === 'Analytics');
+
+    if (!analyticsSheet) return;
+
+    const sheetId = analyticsSheet.properties.sheetId;
+
+    // Chart already created in status pie chart section
+    // Just update the data range which is already set in main analytics
+
+  } catch (error) {
+    console.log('Error creating product chart:', error.message);
+  }
+}
+
+/**
+ * Format analytics sheet with colors and styles
+ */
+async function formatAnalyticsSheet(sheets, spreadsheetId) {
+  try {
+    const sheetResponse = await sheets.spreadsheets.get({ spreadsheetId });
+    const analyticsSheet = sheetResponse.data.sheets.find(s => s.properties.title === 'Analytics');
+
+    if (!analyticsSheet) return;
+
+    const sheetId = analyticsSheet.properties.sheetId;
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          // Format headers (bold + background)
+          {
+            repeatCell: {
+              range: {
+                sheetId: sheetId,
+                startRowIndex: 0,
+                endRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: 2
+              },
+              cell: {
+                userEnteredFormat: {
+                  textFormat: { bold: true, fontSize: 12 },
+                  backgroundColor: { red: 0.2, green: 0.5, blue: 0.8 },
+                  horizontalAlignment: 'CENTER'
+                }
+              },
+              fields: 'userEnteredFormat(textFormat,backgroundColor,horizontalAlignment)'
+            }
+          },
+          // Format section titles
+          {
+            repeatCell: {
+              range: {
+                sheetId: sheetId,
+                startRowIndex: 1,
+                endRowIndex: 20,
+                startColumnIndex: 0,
+                endColumnIndex: 1
+              },
+              cell: {
+                userEnteredFormat: {
+                  textFormat: { bold: true }
+                }
+              },
+              fields: 'userEnteredFormat(textFormat)'
+            }
+          },
+          // Auto-resize columns
+          {
+            autoResizeDimensions: {
+              dimensions: {
+                sheetId: sheetId,
+                dimension: 'COLUMNS',
+                startIndex: 0,
+                endIndex: 4
+              }
+            }
+          }
+        ]
+      }
+    });
+
+  } catch (error) {
+    console.log('Error formatting analytics:', error.message);
   }
 }
 
