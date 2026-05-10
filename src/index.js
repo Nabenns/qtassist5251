@@ -6,7 +6,7 @@ require('dotenv').config();
 const { testConnection } = require('./database/sequelize');
 const { initDatabase } = require('./database/models');
 const { startCronJobs } = require('./services/cronService');
-const { initializeSheets } = require('./services/googleSheetsService');
+const { initializeSheets, syncActiveUsersToSheets } = require('./services/googleSheetsService');
 
 // Create Discord client
 const client = new Client({

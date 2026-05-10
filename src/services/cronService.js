@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const { TemporaryRole, ModerationLog, Transaction } = require('../database/models');
 const { Op } = require('sequelize');
 const { createWarningEmbed, createInfoEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
+const { syncActiveUsersToSheets } = require('./googleSheetsService');
 
 let client = null;
 
@@ -286,6 +287,18 @@ function startCronJobs(discordClient) {
   // Check expired transactions every 30 minutes
   cron.schedule('*/30 * * * *', async () => {
     await checkExpiredTransactions();
+  });
+
+  // Sync active users to Google Sheets every 10 minutes
+  cron.schedule('*/10 * * * *', async () => {
+    console.log('🔄 Syncing active users to Google Sheets...');
+    for (const guild of client.guilds.cache.values()) {
+      try {
+        await syncActiveUsersToSheets(guild);
+      } catch (error) {
+        console.error(`❌ Error syncing active users for guild ${guild.id}:`, error.message);
+      }
+    }
   });
 
   console.log('✅ Cron jobs started successfully.');

@@ -1,5 +1,5 @@
 const { google } = require('googleapis');
-const { Transaction, Product } = require('../database/models');
+const { Transaction, Product, TemporaryRole } = require('../database/models');
 
 // Initialize Google Sheets API
 const getGoogleSheetsClient = () => {
@@ -41,7 +41,8 @@ async function initializeSheets() {
     const requiredSheets = [
       { title: 'Active Transactions', index: 0 },
       { title: 'Transaction History', index: 1 },
-      { title: 'Analytics', index: 2 }
+      { title: 'Active Users', index: 2 },
+      { title: 'Analytics', index: 3 }
     ];
 
     // Create missing sheets
@@ -88,6 +89,10 @@ async function setupSheetHeaders(sheets, spreadsheetId) {
     ['Order ID', 'User ID', 'Username', 'Product', 'Role', 'Amount (IDR)', 'Status', 'Created At', 'Reviewed By', 'Reviewed At', 'Rejection Reason', 'Payment Proof']
   ];
 
+  const activeUsersHeaders = [
+    ['User ID', 'Username', 'Role ID', 'Role Name', 'Granted At', 'Expires At', 'Days Remaining', 'Status']
+  ];
+
   const analyticsHeaders = [
     ['Metric', 'Value']
   ];
@@ -114,6 +119,14 @@ async function setupSheetHeaders(sheets, spreadsheetId) {
         range: 'Transaction History!A1:L1',
         valueInputOption: 'RAW',
         requestBody: { values: historyHeaders }
+      });
+
+      // Set headers for Active Users
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'Active Users!A1:H1',
+        valueInputOption: 'RAW',
+        requestBody: { values: activeUsersHeaders }
       });
 
       // Set headers for Analytics
@@ -578,7 +591,260 @@ async function formatAnalyticsSheet(sheets, spreadsheetId) {
   }
 }
 
+/**
+ * Sync all active temporary roles to Google Sheets
+ */
+async function syncActiveUsersToSheets(guild) {
+  const client = getGoogleSheetsClient();
+  if (!client) return;
+
+  const { sheets, spreadsheetId } = client;
+
+  try {
+    // Get all active temporary roles
+    const activeRoles = await TemporaryRole.findAll({
+      where: {
+        serverId: guild.id,
+        expiresAt: { [require('sequelize').Op.gt]: new Date() }
+      },
+      order: [['expiresAt', 'ASC']]
+    });
+
+    // Clear existing data (except headers)
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: 'Active Users!A2:H1000'
+    });
+
+    if (activeRoles.length === 0) {
+      console.log('✅ No active users to sync');
+      return;
+    }
+
+    // Prepare rows
+    const rows = [];
+    for (const tempRole of activeRoles) {
+      // Get username
+      let username = 'Unknown';
+      try {
+        const member = await guild.members.fetch(tempRole.userId);
+        username = member.user.tag;
+      } catch (error) {
+        username = tempRole.userId;
+      }
+
+      // Get role name
+      let roleName = 'Unknown';
+      try {
+        const role = guild.roles.cache.get(tempRole.roleId);
+        roleName = role ? role.name : tempRole.roleId;
+      } catch (error) {
+        roleName = tempRole.roleId;
+      }
+
+      // Calculate days remaining
+      const now = new Date();
+      const expiresAt = new Date(tempRole.expiresAt);
+      const timeLeft = expiresAt - now;
+      const daysRemaining = Math.max(0, Math.floor(timeLeft / (1000 * 60 * 60 * 24)));
+      const hoursRemaining = Math.max(0, Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
+
+      // Determine status
+      let status = '✅ Active';
+      if (daysRemaining === 0 && hoursRemaining < 24) {
+        status = '⚠️ Expiring Soon';
+      } else if (daysRemaining < 3) {
+        status = '⏰ Expiring Soon';
+      }
+
+      const daysRemainingText = daysRemaining > 0
+        ? `${daysRemaining} hari ${hoursRemaining} jam`
+        : `${hoursRemaining} jam`;
+
+      rows.push([
+        tempRole.userId,
+        username,
+        tempRole.roleId,
+        roleName,
+        new Date(tempRole.grantedAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
+        new Date(tempRole.expiresAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
+        daysRemainingText,
+        status
+      ]);
+    }
+
+    // Update sheet with all rows
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Active Users!A2',
+      valueInputOption: 'RAW',
+      requestBody: { values: rows }
+    });
+
+    console.log(`✅ Synced ${rows.length} active users to Google Sheets`);
+
+  } catch (error) {
+    console.error('❌ Error syncing active users:', error.message);
+  }
+}
+
+/**
+ * Sync single temporary role to Active Users sheet
+ */
+async function syncTemporaryRoleToSheets(tempRole, guild) {
+  const client = getGoogleSheetsClient();
+  if (!client) return;
+
+  const { sheets, spreadsheetId } = client;
+
+  try {
+    // Check if role is still active
+    const now = new Date();
+    const expiresAt = new Date(tempRole.expiresAt);
+
+    if (expiresAt <= now) {
+      // Role expired, remove from sheet
+      await removeUserRoleFromSheet(sheets, spreadsheetId, tempRole.userId, tempRole.roleId);
+      return;
+    }
+
+    // Get username
+    let username = 'Unknown';
+    try {
+      const member = await guild.members.fetch(tempRole.userId);
+      username = member.user.tag;
+    } catch (error) {
+      username = tempRole.userId;
+    }
+
+    // Get role name
+    let roleName = 'Unknown';
+    try {
+      const role = guild.roles.cache.get(tempRole.roleId);
+      roleName = role ? role.name : tempRole.roleId;
+    } catch (error) {
+      roleName = tempRole.roleId;
+    }
+
+    // Calculate days remaining
+    const timeLeft = expiresAt - now;
+    const daysRemaining = Math.max(0, Math.floor(timeLeft / (1000 * 60 * 60 * 24)));
+    const hoursRemaining = Math.max(0, Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
+
+    // Determine status
+    let status = '✅ Active';
+    if (daysRemaining === 0 && hoursRemaining < 24) {
+      status = '⚠️ Expiring Soon';
+    } else if (daysRemaining < 3) {
+      status = '⏰ Expiring Soon';
+    }
+
+    const daysRemainingText = daysRemaining > 0
+      ? `${daysRemaining} hari ${hoursRemaining} jam`
+      : `${hoursRemaining} jam`;
+
+    const rowData = [
+      tempRole.userId,
+      username,
+      tempRole.roleId,
+      roleName,
+      new Date(tempRole.grantedAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
+      new Date(tempRole.expiresAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
+      daysRemainingText,
+      status
+    ];
+
+    // Update or append row
+    await updateOrAppendUserRole(sheets, spreadsheetId, tempRole.userId, tempRole.roleId, rowData);
+
+    console.log(`✅ Synced user ${tempRole.userId} role to Active Users sheet`);
+
+  } catch (error) {
+    console.error('❌ Error syncing temporary role:', error.message);
+  }
+}
+
+/**
+ * Update or append user role in Active Users sheet
+ */
+async function updateOrAppendUserRole(sheets, spreadsheetId, userId, roleId, rowData) {
+  try {
+    // Get all user IDs and role IDs
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Active Users!A:C'
+    });
+
+    const rows = response.data.values || [];
+    const rowIndex = rows.findIndex((row, idx) => idx > 0 && row[0] === userId && row[2] === roleId);
+
+    if (rowIndex !== -1) {
+      // Update existing row
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Active Users!A${rowIndex + 1}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [rowData] }
+      });
+    } else {
+      // Append new row
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'Active Users!A:H',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: { values: [rowData] }
+      });
+    }
+  } catch (error) {
+    console.error('Error updating user role:', error.message);
+  }
+}
+
+/**
+ * Remove user role from Active Users sheet
+ */
+async function removeUserRoleFromSheet(sheets, spreadsheetId, userId, roleId) {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Active Users!A:C'
+    });
+
+    const rows = response.data.values || [];
+    const rowIndex = rows.findIndex((row, idx) => idx > 0 && row[0] === userId && row[2] === roleId);
+
+    if (rowIndex !== -1) {
+      // Get sheet ID
+      const sheetResponse = await sheets.spreadsheets.get({ spreadsheetId });
+      const sheet = sheetResponse.data.sheets.find(s => s.properties.title === 'Active Users');
+
+      if (sheet) {
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [{
+              deleteDimension: {
+                range: {
+                  sheetId: sheet.properties.sheetId,
+                  dimension: 'ROWS',
+                  startIndex: rowIndex,
+                  endIndex: rowIndex + 1
+                }
+              }
+            }]
+          }
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error removing user role:', error.message);
+  }
+}
+
 module.exports = {
   initializeSheets,
-  syncTransactionToSheets
+  syncTransactionToSheets,
+  syncActiveUsersToSheets,
+  syncTemporaryRoleToSheets
 };
