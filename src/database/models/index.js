@@ -6,10 +6,16 @@ const Transaction = require('./Transaction');
 const EmailBinding = require('./EmailBinding');
 const DriveConfig = require('./DriveConfig');
 const AdminUser = require('./AdminUser');
+const IbConfig = require('./IbConfig');
+const IbAccount = require('./IbAccount');
+const IbVolumeRecord = require('./IbVolumeRecord');
 
 // Define associations
 Product.hasMany(Transaction, { foreignKey: 'productId', as: 'transactions' });
 Transaction.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
+
+IbAccount.hasMany(IbVolumeRecord, { foreignKey: 'ibAccountId', as: 'volumes', onDelete: 'CASCADE' });
+IbVolumeRecord.belongsTo(IbAccount, { foreignKey: 'ibAccountId', as: 'account' });
 
 // Initialize database and sync models
 const initDatabase = async () => {
@@ -32,5 +38,8 @@ module.exports = {
   EmailBinding,
   DriveConfig,
   AdminUser,
+  IbConfig,
+  IbAccount,
+  IbVolumeRecord,
   initDatabase
 };

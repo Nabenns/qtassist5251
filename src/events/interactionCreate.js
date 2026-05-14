@@ -1,10 +1,19 @@
 const { Op } = require('sequelize');
-const { Product, Transaction, TemporaryRole, EmailBinding, DriveConfig } = require('../database/models');
+const {
+  Product,
+  Transaction,
+  TemporaryRole,
+  EmailBinding,
+  DriveConfig,
+  IbConfig,
+  IbAccount
+} = require('../database/models');
 const { createSuccessEmbed, createErrorEmbed, createInfoEmbed, createWarningEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 const { formatDuration } = require('../utils/parseDuration');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
 const { syncTransactionToSheets } = require('../services/googleSheetsService');
 const { shareMultipleDriveFiles, revokeMultipleDriveAccess } = require('../services/googleDriveService');
+const ibService = require('../services/ibService');
 
 module.exports = {
   name: 'interactionCreate',
@@ -94,6 +103,11 @@ module.exports = {
         if (interaction.customId.startsWith('claim_role_')) {
           await handleClaimRole(interaction);
         }
+
+        // Handle IB registration button
+        if (interaction.customId === 'ib_register') {
+          await handleIbRegister(interaction);
+        }
       } catch (error) {
         console.error('Error handling button interaction:', error);
 
@@ -124,6 +138,10 @@ module.exports = {
 
         if (interaction.customId === 'email_modal') {
           await handleEmailModalSubmit(interaction);
+        }
+
+        if (interaction.customId === 'ib_register_modal') {
+          await handleIbRegisterModalSubmit(interaction);
         }
       } catch (error) {
         console.error('Error handling modal submission:', error);
@@ -1219,6 +1237,165 @@ async function handleClaimRole(interaction) {
       embeds: [createErrorEmbed(
         'Error',
         'Terjadi kesalahan saat memberikan role. Silakan coba lagi atau hubungi admin.'
+      )]
+    });
+  }
+}
+
+// ============================================================
+// IB registration flow (used by /ib-setup embed)
+//
+// Click button → show a modal asking for the broker account number.
+// On submit → create / update IbAccount and run an immediate verification
+// attempt. Cron handles the rest of the retry schedule.
+// ============================================================
+
+async function handleIbRegister(interaction) {
+  // Modal must be the FIRST response, can't defer.
+  try {
+    const config = await IbConfig.findOne({ where: { serverId: interaction.guild.id } });
+    if (!config || !config.enabled) {
+      return interaction.reply({
+        ephemeral: true,
+        embeds: [createErrorEmbed(
+          'Sistem IB Tidak Aktif',
+          'Admin belum mengaktifkan sistem pendaftaran IB. Hubungi admin.'
+        )]
+      });
+    }
+
+    const modal = new ModalBuilder()
+      .setCustomId('ib_register_modal')
+      .setTitle('Daftar IB QTrades');
+
+    const accountInput = new TextInputBuilder()
+      .setCustomId('broker_account_number')
+      .setLabel('Nomor Akun Broker (Valetax)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('contoh: 12345678')
+      .setRequired(true)
+      .setMinLength(3)
+      .setMaxLength(32);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(accountInput));
+    await interaction.showModal(modal);
+  } catch (error) {
+    console.error('Error showing IB register modal:', error);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({
+        ephemeral: true,
+        embeds: [createErrorEmbed('Error', 'Gagal membuka form pendaftaran. Coba lagi.')]
+      });
+    }
+  }
+}
+
+async function handleIbRegisterModalSubmit(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const guild = interaction.guild;
+  const user = interaction.user;
+  const accountInput = interaction.fields.getTextInputValue('broker_account_number') || '';
+  const brokerAccountNumber = accountInput.trim().replace(/\s+/g, '');
+
+  if (!brokerAccountNumber) {
+    return interaction.editReply({
+      embeds: [createErrorEmbed('Format Salah', 'Nomor akun tidak boleh kosong.')]
+    });
+  }
+  if (!/^[0-9A-Za-z\-]+$/.test(brokerAccountNumber)) {
+    return interaction.editReply({
+      embeds: [createErrorEmbed(
+        'Format Salah',
+        'Nomor akun hanya boleh berisi huruf, angka, dan tanda hubung (`-`).'
+      )]
+    });
+  }
+
+  try {
+    const config = await IbConfig.findOne({ where: { serverId: guild.id } });
+    if (!config || !config.enabled) {
+      return interaction.editReply({
+        embeds: [createErrorEmbed(
+          'Sistem IB Tidak Aktif',
+          'Admin belum mengaktifkan sistem pendaftaran IB. Hubungi admin.'
+        )]
+      });
+    }
+
+    const submission = await ibService.submitAccount({
+      serverId: guild.id,
+      userId: user.id,
+      brokerAccountNumber
+    });
+
+    if (submission.alreadyVerified) {
+      return interaction.editReply({
+        embeds: [createInfoEmbed(
+          'Sudah Terverifikasi',
+          `Akun \`${brokerAccountNumber}\` sudah pernah diverifikasi sebelumnya. Role IB seharusnya sudah kamu miliki.`
+        )]
+      });
+    }
+
+    // Run an immediate first verification attempt synchronously so the user
+    // gets fast feedback. Cron will pick up subsequent retries.
+    const result = await ibService.runVerification({
+      account: submission.account,
+      config,
+      discordClient: interaction.client,
+      source: 'manual'
+    });
+
+    if (result.status === 'verified') {
+      return interaction.editReply({
+        embeds: [createSuccessEmbed(
+          'Pendaftaran Berhasil',
+          result.message,
+          [
+            { name: '🆔 Nomor Akun', value: `\`${brokerAccountNumber}\``, inline: true },
+            { name: '📊 Status', value: 'Terverifikasi ✅', inline: true }
+          ]
+        )]
+      });
+    }
+
+    if (result.status === 'failed') {
+      return interaction.editReply({
+        embeds: [createWarningEmbed(
+          'Verifikasi Gagal',
+          result.message,
+          [
+            { name: '🆔 Nomor Akun', value: `\`${brokerAccountNumber}\``, inline: true },
+            { name: '📊 Status', value: 'Gagal — hubungi admin', inline: true }
+          ]
+        )]
+      });
+    }
+
+    // Pending — verifikasi akan dilanjutkan oleh cron.
+    const intervalMinutes = config.retryIntervalMinutes;
+    const remainingTries = Math.max(config.maxRetries - submission.account.retryCount, 0);
+    return interaction.editReply({
+      embeds: [createInfoEmbed(
+        'Sedang Diproses',
+        result.message + (
+          remainingTries > 0
+            ? `\n\nBot akan otomatis cek lagi tiap **${intervalMinutes} menit**. Kalau belum ketemu setelah **${config.maxRetries} percobaan**, kamu akan diminta hubungi admin.`
+            : ''
+        ),
+        [
+          { name: '🆔 Nomor Akun', value: `\`${brokerAccountNumber}\``, inline: true },
+          { name: '📊 Status', value: 'Menunggu verifikasi otomatis', inline: true }
+        ]
+      )]
+    });
+  } catch (error) {
+    console.error('Error processing IB registration:', error);
+    return interaction.editReply({
+      embeds: [createErrorEmbed(
+        'Error',
+        `Gagal memproses pendaftaran. Hubungi admin kalau masalah berlanjut.\n\n\`${error.message || 'unknown'}\``
       )]
     });
   }

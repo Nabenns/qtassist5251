@@ -6,6 +6,7 @@ const { syncActiveUsersToSheets } = require('./googleSheetsService');
 const { recordCronStart } = require('./cronStatus');
 const { createBackup, pruneOldBackups } = require('./backupService');
 const { emitEvent } = require('./eventBus');
+const ibService = require('./ibService');
 
 let client = null;
 
@@ -355,6 +356,26 @@ function startCronJobs(discordClient) {
         console.error('❌ Daily backup failed:', error.message);
         throw error;
       }
+    }),
+    { timezone: 'Asia/Jakarta' }
+  );
+
+  // IB verification queue: every minute, pick up due `pending` rows and
+  // run another verification attempt. Stays cheap because the queue is
+  // capped at 50 rows per tick and only fires when nextRetryAt has elapsed.
+  cron.schedule(
+    '* * * * *',
+    trackedCron('ibVerificationQueue', async () => {
+      return ibService.processPendingQueue({ discordClient: client });
+    })
+  );
+
+  // IB daily volume sampling at 04:00 Asia/Jakarta — runs after backup so
+  // the volume rows are part of that day's backup.
+  cron.schedule(
+    '0 4 * * *',
+    trackedCron('ibVolumeSampling', async () => {
+      return ibService.processVolumeAllConfigs({ discordClient: client });
     }),
     { timezone: 'Asia/Jakarta' }
   );

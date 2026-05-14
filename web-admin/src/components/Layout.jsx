@@ -11,6 +11,8 @@ import {
   Send,
   Activity,
   Database,
+  Handshake,
+  Users as UsersIcon,
   LogOut,
   Moon,
   Sun,
@@ -43,7 +45,8 @@ const navSections = [
       { to: '/transactions', label: 'Transaksi', icon: Receipt },
       { to: '/temproles', label: 'Role Sementara', icon: Clock },
       { to: '/products', label: 'Produk', icon: Package },
-      { to: '/emails', label: 'Daftar Email', icon: Mail }
+      { to: '/emails', label: 'Daftar Email', icon: Mail },
+      { to: '/ib-accounts', label: 'Akun IB', icon: UsersIcon }
     ]
   },
   {
@@ -53,7 +56,8 @@ const navSections = [
       { to: '/audit', label: 'Audit Log', icon: ListChecks },
       { to: '/discord-post', label: 'Posting Discord', icon: Send },
       { to: '/bot-status', label: 'Status Bot', icon: Activity },
-      { to: '/backups', label: 'Backup Database', icon: Database }
+      { to: '/backups', label: 'Backup Database', icon: Database },
+      { to: '/ib-settings', label: 'Pengaturan IB', icon: Handshake }
     ]
   }
 ];
