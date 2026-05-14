@@ -65,6 +65,7 @@ export default function App() {
         <Route path="/temproles" element={<ProtectedShell><TempRoles /></ProtectedShell>} />
         <Route path="/emails" element={<ProtectedShell><Emails /></ProtectedShell>} />
         <Route path="/users" element={<ProtectedShell><UserLookup /></ProtectedShell>} />
+        <Route path="/users/:userId" element={<ProtectedShell><UserLookup /></ProtectedShell>} />
         <Route path="/audit" element={<ProtectedShell><AuditLog /></ProtectedShell>} />
         <Route path="/discord-post" element={<ProtectedShell><DiscordPost /></ProtectedShell>} />
         <Route path="/bot-status" element={<ProtectedShell><BotStatus /></ProtectedShell>} />

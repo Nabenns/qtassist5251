@@ -21,6 +21,24 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    emptyOutDir: true
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        // Split heavy / rarely-loaded libraries into their own chunks so the
+        // initial JS payload stays small. The login screen does not need
+        // any of these.
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('recharts') || id.includes('d3-')) return 'charts';
+            if (id.includes('@radix-ui')) return 'radix';
+            if (id.includes('lucide-react')) return 'lucide';
+            if (id.includes('react-router')) return 'router';
+            if (id.includes('react-dom')) return 'react-dom';
+          }
+          return undefined;
+        }
+      }
+    }
   }
 });
