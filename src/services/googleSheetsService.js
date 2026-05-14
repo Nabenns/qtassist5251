@@ -371,7 +371,7 @@ async function updateAnalytics(sheets, spreadsheetId, guild) {
       ['', ''],
       ['💰 REVENUE METRICS', ''],
       ['Total Revenue (IDR)', totalRevenue],
-      ['Average Transaction (IDR)', totalTransactions > 0 ? Math.round(totalRevenue / approvedCount) : 0],
+      ['Average Transaction (IDR)', approvedCount > 0 ? Math.round(totalRevenue / approvedCount) : 0],
       ['', ''],
       ['📈 PERFORMANCE METRICS', ''],
       ['Approval Rate (%)', approvalRate],

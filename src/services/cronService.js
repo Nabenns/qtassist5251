@@ -226,20 +226,28 @@ async function sendExpiryNotifications() {
 
 /**
  * Check and expire old pending transactions
- * Midtrans default expiry is 24 hours
+ * - status `pending` (waiting for user to pay): expires after 24 hours
+ * - status `pending_review` (waiting for admin to review uploaded proof): expires after 7 days
  */
 async function checkExpiredTransactions() {
   try {
     const now = new Date();
     const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+    const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
 
-    // Find all pending transactions older than 24 hours
+    // Find expired transactions: stale `pending` (24h) or stale `pending_review` (7d)
     const expiredTransactions = await Transaction.findAll({
       where: {
-        status: 'pending',
-        createdAt: {
-          [Op.lte]: twentyFourHoursAgo
-        }
+        [Op.or]: [
+          {
+            status: 'pending',
+            createdAt: { [Op.lte]: twentyFourHoursAgo }
+          },
+          {
+            status: 'pending_review',
+            createdAt: { [Op.lte]: sevenDaysAgo }
+          }
+        ]
       }
     });
 
@@ -251,10 +259,11 @@ async function checkExpiredTransactions() {
 
     for (const transaction of expiredTransactions) {
       try {
+        const previousStatus = transaction.status;
         transaction.status = 'expired';
         await transaction.save();
 
-        console.log(`✅ Marked transaction ${transaction.orderId} as expired`);
+        console.log(`✅ Marked transaction ${transaction.orderId} (${previousStatus}) as expired`);
 
       } catch (error) {
         console.error(`Error expiring transaction ${transaction.orderId}:`, error);

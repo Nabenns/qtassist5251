@@ -1,8 +1,23 @@
 const { Product, Transaction } = require('../database/models');
 const { createSuccessEmbed, createErrorEmbed, createInfoEmbed } = require('../utils/embedBuilder');
 const { formatDuration } = require('../utils/parseDuration');
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const { syncTransactionToSheets } = require('../services/googleSheetsService');
+
+/**
+ * Download an image attachment from Discord's CDN and return a Buffer.
+ * Discord CDN URLs are signed and expire (~24h). To keep the proof viewable
+ * after the user's original message is auto-deleted, we have to re-host the
+ * image as an attachment on the admin review message.
+ */
+async function downloadAttachment(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to download attachment: HTTP ${response.status}`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
 
 module.exports = {
   name: 'messageCreate',
@@ -10,19 +25,47 @@ module.exports = {
     // Ignore bot messages
     if (message.author.bot) return;
 
-    // Check if user has pending upload
-    if (!message.client.pendingUploads) return;
+    // Only process messages in the configured payment upload channel.
+    // This is the restart-safe gate: even if the in-memory pendingUploads Map is empty
+    // (e.g. after a bot restart), we can still recover the user's pending transaction
+    // from the database below.
+    const uploadChannelId = process.env.PAYMENT_UPLOAD_CHANNEL_ID;
+    if (!uploadChannelId || message.channel.id !== uploadChannelId) return;
 
-    const pending = message.client.pendingUploads.get(message.author.id);
-    if (!pending) return;
+    // Look up the active upload session in memory (preferred — gives us the
+    // instruction message id to clean up). If missing (bot restarted), we
+    // fall back to a DB lookup for the user's most recent pending transaction.
+    let pending = message.client.pendingUploads
+      ? message.client.pendingUploads.get(message.author.id)
+      : null;
 
-    // Check if message is in the correct temp channel
-    if (message.channel.id !== pending.tempChannelId) return;
-
-    // Check if expired
-    if (Date.now() > pending.expiresAt) {
+    if (pending && Date.now() > pending.expiresAt) {
       message.client.pendingUploads.delete(message.author.id);
-      return;
+      pending = null;
+    }
+
+    let transaction;
+
+    if (pending) {
+      transaction = await Transaction.findOne({
+        where: { orderId: pending.orderId },
+        include: [{ model: Product, as: 'product' }]
+      });
+    } else {
+      // Restart-safe fallback: pick the user's most recent `pending` transaction
+      // in this guild. Only `pending` (not yet uploaded), so we don't overwrite
+      // a previously uploaded proof that's already in `pending_review`.
+      transaction = await Transaction.findOne({
+        where: {
+          userId: message.author.id,
+          serverId: message.guild.id,
+          status: 'pending'
+        },
+        include: [{ model: Product, as: 'product' }],
+        order: [['createdAt', 'DESC']]
+      });
+
+      if (!transaction) return; // user has no active upload session
     }
 
     try {
@@ -47,36 +90,67 @@ module.exports = {
         return;
       }
 
-      // Get transaction
-      const transaction = await Transaction.findOne({
-        where: { orderId: pending.orderId },
-        include: [{
-          model: Product,
-          as: 'product'
-        }]
-      });
-
       if (!transaction) {
         await message.reply({
           embeds: [createErrorEmbed('Transaksi Tidak Ditemukan', 'Transaksi sudah tidak valid.')]
         });
-        message.client.pendingUploads.delete(message.author.id);
+        if (pending && message.client.pendingUploads) {
+          message.client.pendingUploads.delete(message.author.id);
+        }
         return;
       }
 
-      // Update transaction with payment proof
-      await transaction.update({
-        paymentProofUrl: imageAttachment.url,
-        status: 'pending_review'
-      });
+      // Don't reprocess a transaction that's already under review or finalized
+      if (transaction.status !== 'pending') {
+        const errorMsg = await message.reply({
+          embeds: [createInfoEmbed(
+            'Sudah Diproses',
+            `Bukti pembayaran untuk order ini sudah dalam status **${transaction.status}**. Tidak perlu upload ulang.`
+          )]
+        });
+        setTimeout(() => {
+          message.delete().catch(() => {});
+          errorMsg.delete().catch(() => {});
+        }, 5000);
+        return;
+      }
+
+      const orderId = transaction.orderId;
+
+      // Download the attachment buffer immediately. We re-upload it to the
+      // admin review channel so the image stays viewable even after the
+      // original (signed, expiring) Discord CDN URL becomes invalid and
+      // after the user's source message is auto-deleted below.
+      let proofBuffer;
+      try {
+        proofBuffer = await downloadAttachment(imageAttachment.url);
+      } catch (error) {
+        console.error('Failed to download payment proof:', error);
+        await message.reply({
+          embeds: [createErrorEmbed(
+            'Gagal Memproses Gambar',
+            'Bot tidak dapat mengunduh gambar bukti pembayaran. Silakan coba upload ulang.'
+          )]
+        });
+        return;
+      }
+
+      // Build a stable filename. Keep extension if it's something common.
+      const originalName = imageAttachment.name || 'proof.png';
+      const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const proofFilename = `proof_${orderId}_${safeName}`;
 
       // Send to admin review channel
       const notifChannelId = process.env.PAYMENT_REVIEW_CHANNEL_ID || process.env.MOD_LOG_CHANNEL_ID;
-      const notifChannel = message.guild.channels.cache.get(notifChannelId);
+      const notifChannel = notifChannelId
+        ? message.guild.channels.cache.get(notifChannelId)
+        : null;
+
+      let persistentProofUrl = null;
 
       if (notifChannel) {
         const product = transaction.product;
-        const role = message.guild.roles.cache.get(product.roleId);
+        const role = product ? message.guild.roles.cache.get(product.roleId) : null;
 
         const formattedPrice = new Intl.NumberFormat('id-ID', {
           style: 'currency',
@@ -86,33 +160,58 @@ module.exports = {
 
         const adminEmbed = createInfoEmbed(
           '💳 Review Pembayaran Baru',
-          `<@${transaction.userId}> telah mengirim bukti pembayaran untuk **${product.name}**`,
+          `<@${transaction.userId}> telah mengirim bukti pembayaran untuk **${product ? product.name : 'Unknown Product'}**`,
           [
             { name: '👤 User', value: `<@${transaction.userId}>`, inline: true },
-            { name: '📦 Produk', value: product.name, inline: true },
-            { name: '🎭 Role', value: `${role}`, inline: true },
+            { name: '📦 Produk', value: product ? product.name : 'Unknown', inline: true },
+            { name: '🎭 Role', value: role ? `${role}` : '_role hilang_', inline: true },
             { name: '💰 Jumlah', value: formattedPrice, inline: true },
-            { name: '⏱️ Durasi', value: formatDuration(product.duration), inline: true },
-            { name: '🔖 Order ID', value: `\`${pending.orderId}\``, inline: false }
+            { name: '⏱️ Durasi', value: product ? formatDuration(product.duration) : '-', inline: true },
+            { name: '🔖 Order ID', value: `\`${orderId}\``, inline: false }
           ]
         );
 
-        adminEmbed.setImage(imageAttachment.url);
+        // Reference the re-uploaded attachment via attachment:// scheme so the
+        // embed renders the image hosted on the admin message itself.
+        adminEmbed.setImage(`attachment://${proofFilename}`);
+
+        const proofAttachment = new AttachmentBuilder(proofBuffer, { name: proofFilename });
 
         const approveButton = new ButtonBuilder()
-          .setCustomId(`approve_payment_${pending.orderId}`)
+          .setCustomId(`approve_payment_${orderId}`)
           .setLabel('✅ Terima')
           .setStyle(ButtonStyle.Success);
 
         const rejectButton = new ButtonBuilder()
-          .setCustomId(`reject_payment_${pending.orderId}`)
+          .setCustomId(`reject_payment_${orderId}`)
           .setLabel('❌ Tolak')
           .setStyle(ButtonStyle.Danger);
 
         const row = new ActionRowBuilder().addComponents(approveButton, rejectButton);
 
-        await notifChannel.send({ embeds: [adminEmbed], components: [row] });
+        const adminMessage = await notifChannel.send({
+          embeds: [adminEmbed],
+          components: [row],
+          files: [proofAttachment]
+        });
+
+        // Capture the persistent attachment URL from the admin message we just
+        // sent. This URL is tied to the admin message (which we don't delete),
+        // not to the user's about-to-be-deleted message.
+        const reuploaded = adminMessage.attachments.first();
+        if (reuploaded) {
+          persistentProofUrl = reuploaded.url;
+        }
+      } else {
+        console.warn(`⚠️ PAYMENT_REVIEW_CHANNEL_ID not configured or not found; admin won't see proof for ${orderId}`);
       }
+
+      // Update transaction with the persistent proof URL (or fall back to the
+      // original URL if the admin channel isn't configured — better than nothing).
+      await transaction.update({
+        paymentProofUrl: persistentProofUrl || imageAttachment.url,
+        status: 'pending_review'
+      });
 
       // Notify user
       const successMsg = await message.reply({
@@ -120,18 +219,20 @@ module.exports = {
           'Bukti Pembayaran Terkirim',
           'Bukti pembayaran kamu berhasil dikirim ke admin. Silakan tunggu approval.',
           [
-            { name: '🔖 Order ID', value: `\`${pending.orderId}\``, inline: true },
+            { name: '🔖 Order ID', value: `\`${orderId}\``, inline: true },
             { name: '📊 Status', value: '⏳ Menunggu Review', inline: true }
           ]
         )]
       });
 
-      // Delete instruction message
-      try {
-        const instructionMsg = await message.channel.messages.fetch(pending.instructionMsgId);
-        await instructionMsg.delete();
-      } catch (error) {
-        console.log('Could not delete instruction message');
+      // Delete instruction message if we have its id
+      if (pending && pending.instructionMsgId) {
+        try {
+          const instructionMsg = await message.channel.messages.fetch(pending.instructionMsgId);
+          await instructionMsg.delete();
+        } catch (error) {
+          console.log('Could not delete instruction message');
+        }
       }
 
       // Auto delete messages after 10 seconds
@@ -145,7 +246,9 @@ module.exports = {
       }, 10000);
 
       // Remove from pending
-      message.client.pendingUploads.delete(message.author.id);
+      if (message.client.pendingUploads) {
+        message.client.pendingUploads.delete(message.author.id);
+      }
 
       // Sync to Google Sheets
       try {

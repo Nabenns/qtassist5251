@@ -44,8 +44,10 @@ module.exports = {
       });
 
       // Separate by status
-      const paidTransactions = allTransactions.filter(tx => tx.status === 'paid');
-      const pendingTransactions = allTransactions.filter(tx => tx.status === 'pending');
+      const paidTransactions = allTransactions.filter(tx => tx.status === 'approved');
+      const pendingTransactions = allTransactions.filter(
+        tx => tx.status === 'pending' || tx.status === 'pending_review'
+      );
 
       // Format currency
       const formatIDR = (amount) => new Intl.NumberFormat('id-ID', {
