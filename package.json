@@ -1,26 +1,35 @@
 {
   "name": "qtassist-discord-bot",
   "version": "1.0.0",
-  "description": "Discord bot with temporary role management and Google Sheets integration",
+  "description": "Discord bot with temporary role management, manual payment system, and admin web dashboard",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "deploy": "node src/deploy-commands.js",
+    "hash-password": "node src/scripts/hash-password.js",
+    "build:web": "cd web-admin && npm install && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "discord",
     "bot",
     "temporary-roles",
-    "google-sheets"
+    "google-sheets",
+    "admin-dashboard"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.7",
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.1",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
     "googleapis": "^131.0.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
     "ms": "^2.1.3",
     "node-cron": "^3.0.3",
     "pg": "^8.11.3",
@@ -30,6 +39,6 @@
     "nodemon": "^3.0.3"
   },
   "engines": {
-    "node": ">=16.9.0"
+    "node": ">=18.0.0"
   }
 }

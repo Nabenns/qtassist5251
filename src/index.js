@@ -7,6 +7,8 @@ const { testConnection } = require('./database/sequelize');
 const { initDatabase } = require('./database/models');
 const { startCronJobs } = require('./services/cronService');
 const { initializeSheets, syncActiveUsersToSheets } = require('./services/googleSheetsService');
+const { startWebServer } = require('./web/server');
+const { seedAdmin } = require('./web/seedAdmin');
 
 // Create Discord client
 const client = new Client({
@@ -20,6 +22,8 @@ const client = new Client({
 
 // Initialize commands collection
 client.commands = new Collection();
+
+let webServer = null;
 
 // Load commands from subdirectories
 function loadCommands(dir) {
@@ -89,6 +93,15 @@ async function init() {
     // Initialize Google Sheets
     await initializeSheets();
 
+    // Seed admin user (no-op if already exists or env not configured)
+    await seedAdmin();
+
+    // Start admin web server (independent of Discord login so the dashboard
+    // is reachable even if the gateway is having issues)
+    webServer = startWebServer({
+      getDiscordClient: () => (client && client.isReady() ? client : null)
+    });
+
     // Login to Discord
     await client.login(process.env.DISCORD_TOKEN);
 
@@ -101,6 +114,14 @@ async function init() {
 // Handle process termination
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down gracefully...');
+  if (webServer) {
+    try {
+      await new Promise((resolve) => webServer.close(resolve));
+      console.log('🌐 Web server closed');
+    } catch (err) {
+      console.error('Error closing web server:', err);
+    }
+  }
   client.destroy();
   process.exit(0);
 });

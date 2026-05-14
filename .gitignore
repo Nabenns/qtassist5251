@@ -30,6 +30,7 @@ google-credentials.json
 # Build
 dist/
 build/
+web-admin/dist/
 
 # Local tooling binaries (download separately, do not commit)
 ngrok

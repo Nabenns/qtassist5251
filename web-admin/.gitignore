@@ -1,0 +1,20 @@
+# dependencies
+node_modules
+
+# production build output
+dist
+dist-ssr
+
+# logs
+*.log
+logs
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
