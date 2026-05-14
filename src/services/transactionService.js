@@ -12,6 +12,7 @@ const {
 const { syncTransactionToSheets } = require('./googleSheetsService');
 const { createSuccessEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 const { formatDuration } = require('../utils/parseDuration');
+const { emitEvent } = require('./eventBus');
 
 /**
  * Approve a transaction by orderId.
@@ -160,6 +161,17 @@ async function approveTransaction({ client, orderId, reviewerId, reviewerLabel }
     console.log('Could not sync to Google Sheets:', error.message);
   }
 
+  emitEvent('transaction.approved', {
+    orderId: transaction.orderId,
+    userId: transaction.userId,
+    serverId: transaction.serverId,
+    amount: transaction.amount,
+    productId: product.id,
+    productName: product.name,
+    reviewedBy: reviewerId,
+    reviewerLabel: reviewerLabel || null
+  });
+
   return { ok: true, transaction, role, expiresAt };
 }
 
@@ -224,6 +236,18 @@ async function rejectTransaction({ client, orderId, reviewerId, reviewerLabel, r
   } catch (error) {
     console.log('Could not sync to Google Sheets:', error.message);
   }
+
+  emitEvent('transaction.rejected', {
+    orderId: transaction.orderId,
+    userId: transaction.userId,
+    serverId: transaction.serverId,
+    amount: transaction.amount,
+    productId: transaction.productId,
+    productName: transaction.product ? transaction.product.name : null,
+    reviewedBy: reviewerId,
+    reviewerLabel: reviewerLabel || null,
+    reason: reason.trim()
+  });
 
   return { ok: true, transaction };
 }

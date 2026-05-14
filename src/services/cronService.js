@@ -3,8 +3,26 @@ const { TemporaryRole, ModerationLog, Transaction } = require('../database/model
 const { Op } = require('sequelize');
 const { createWarningEmbed, createInfoEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 const { syncActiveUsersToSheets } = require('./googleSheetsService');
+const { recordCronStart } = require('./cronStatus');
 
 let client = null;
+
+/**
+ * Wrap an async cron handler so it records its start/finish/duration to
+ * cronStatus and never lets an exception escape into the cron scheduler.
+ */
+function trackedCron(name, fn) {
+  return async () => {
+    const run = recordCronStart(name);
+    try {
+      const meta = await fn();
+      run.finalize('ok', { meta: meta || null });
+    } catch (error) {
+      console.error(`Cron "${name}" failed:`, error);
+      run.finalize('error', { error: error.message || String(error) });
+    }
+  };
+}
 
 /**
  * Check and remove expired roles
@@ -284,31 +302,32 @@ function startCronJobs(discordClient) {
   console.log('⏰ Starting cron jobs...');
 
   // Check expired roles every 1 minute
-  cron.schedule('* * * * *', async () => {
-    await checkExpiredRoles();
-  });
+  cron.schedule('* * * * *', trackedCron('checkExpiredRoles', checkExpiredRoles));
 
   // Check for expiry notifications every 5 minutes
-  cron.schedule('*/5 * * * *', async () => {
-    await sendExpiryNotifications();
-  });
+  cron.schedule('*/5 * * * *', trackedCron('sendExpiryNotifications', sendExpiryNotifications));
 
   // Check expired transactions every 30 minutes
-  cron.schedule('*/30 * * * *', async () => {
-    await checkExpiredTransactions();
-  });
+  cron.schedule('*/30 * * * *', trackedCron('checkExpiredTransactions', checkExpiredTransactions));
 
   // Sync active users to Google Sheets every 10 minutes
-  cron.schedule('*/10 * * * *', async () => {
-    console.log('🔄 Syncing active users to Google Sheets...');
-    for (const guild of client.guilds.cache.values()) {
-      try {
-        await syncActiveUsersToSheets(guild);
-      } catch (error) {
-        console.error(`❌ Error syncing active users for guild ${guild.id}:`, error.message);
+  cron.schedule(
+    '*/10 * * * *',
+    trackedCron('syncActiveUsersToSheets', async () => {
+      let processed = 0;
+      let failed = 0;
+      for (const guild of client.guilds.cache.values()) {
+        try {
+          await syncActiveUsersToSheets(guild);
+          processed++;
+        } catch (error) {
+          failed++;
+          console.error(`❌ Error syncing active users for guild ${guild.id}:`, error.message);
+        }
       }
-    }
-  });
+      return { guildsProcessed: processed, guildsFailed: failed };
+    })
+  );
 
   console.log('✅ Cron jobs started successfully.');
 }

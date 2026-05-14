@@ -3,6 +3,7 @@ const { createSuccessEmbed, createErrorEmbed, createInfoEmbed } = require('../ut
 const { formatDuration } = require('../utils/parseDuration');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const { syncTransactionToSheets } = require('../services/googleSheetsService');
+const { emitEvent } = require('../services/eventBus');
 
 /**
  * Download an image attachment from Discord's CDN and return a Buffer.
@@ -211,6 +212,18 @@ module.exports = {
       await transaction.update({
         paymentProofUrl: persistentProofUrl || imageAttachment.url,
         status: 'pending_review'
+      });
+
+      // Notify dashboard subscribers in real time so the admin sees the
+      // new pending review immediately.
+      emitEvent('transaction.pending_review', {
+        orderId,
+        userId: transaction.userId,
+        serverId: transaction.serverId,
+        amount: transaction.amount,
+        productId: transaction.productId,
+        productName: transaction.product ? transaction.product.name : null,
+        proofUrl: persistentProofUrl || imageAttachment.url
       });
 
       // Notify user

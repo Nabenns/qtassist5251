@@ -6,10 +6,16 @@ const helmet = require('helmet');
 
 const authRoutes = require('./routes/auth');
 const statsRoutes = require('./routes/stats');
-const productsRoutes = require('./routes/products');
 const emailsRoutes = require('./routes/emails');
+const auditRoutes = require('./routes/audit');
 const buildTransactionsRouter = require('./routes/transactions');
 const buildTempRolesRouter = require('./routes/temproles');
+const buildProductsRouter = require('./routes/products');
+const buildDiscordRouter = require('./routes/discord');
+const buildDiscordPostsRouter = require('./routes/discordPosts');
+const buildUsersRouter = require('./routes/users');
+const buildBotRouter = require('./routes/bot');
+const buildEventsRouter = require('./routes/events');
 
 /**
  * Build the admin web Express app and mount it on a port.
@@ -24,6 +30,8 @@ function startWebServer({ getDiscordClient }) {
   const app = express();
   const port = parseInt(process.env.WEB_PORT, 10) || 3000;
   const isProd = process.env.NODE_ENV === 'production';
+  const processStartedAt = Date.now();
+  const getProcessStartedAt = () => processStartedAt;
 
   // Trust the reverse proxy (nginx) for correct client IP and protocol.
   app.set('trust proxy', 1);
@@ -58,9 +66,15 @@ function startWebServer({ getDiscordClient }) {
   app.use('/api/auth', authRoutes);
   app.use('/api/stats', statsRoutes);
   app.use('/api/transactions', buildTransactionsRouter({ getDiscordClient }));
-  app.use('/api/products', productsRoutes);
+  app.use('/api/products', buildProductsRouter({ getDiscordClient }));
   app.use('/api/temproles', buildTempRolesRouter({ getDiscordClient }));
   app.use('/api/emails', emailsRoutes);
+  app.use('/api/audit', auditRoutes);
+  app.use('/api/users', buildUsersRouter({ getDiscordClient }));
+  app.use('/api/discord', buildDiscordRouter({ getDiscordClient }));
+  app.use('/api/discord-posts', buildDiscordPostsRouter({ getDiscordClient }));
+  app.use('/api/bot', buildBotRouter({ getDiscordClient, getProcessStartedAt }));
+  app.use('/api/events', buildEventsRouter());
 
   // 404 for unknown /api/* requests so they don't fall through to the SPA
   app.use('/api', (req, res) => {
