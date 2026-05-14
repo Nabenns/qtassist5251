@@ -184,10 +184,35 @@ email bindings — all backed by the same database the bot uses.
 ## 8. Database backups (automated to Google Drive)
 
 The bot runs a daily cron at 03:00 Asia/Jakarta that calls `pg_dump`,
-gzips the output, and uploads the file to a `QTAssist Backups` folder
-on the Google service account's Drive. Auto-retention keeps the 30
-most recent daily backups plus 12 monthly backups (the first backup of
-each calendar month).
+gzips the output, and uploads the file to a Google Drive folder. The
+service account credentials are reused — no extra credential is
+required, but the folder must be owned by a regular Google account
+because **service accounts do not have their own Drive storage quota**.
+
+### One-time Drive folder setup
+
+1. Open <https://drive.google.com> with your personal Google account.
+2. Click **+ New → Folder**, name it (e.g. `QTAssist Backups`).
+3. Right-click the folder → **Share** → add the service account email
+   (the same value you set as `GOOGLE_SERVICE_ACCOUNT_EMAIL`) with
+   **Editor** access. Uncheck "Notify people" before clicking **Share**.
+4. Open the folder, copy the ID from the URL — everything after
+   `/folders/`. Example: `https://drive.google.com/drive/folders/1aBcDeFgHi...`
+   → folder ID is `1aBcDeFgHi...`.
+5. Add to `.env`: `GOOGLE_BACKUP_FOLDER_ID=1aBcDeFgHi...`
+6. `pm2 restart qtassist`.
+
+The folder is owned by your personal account, but the service account
+has Editor access, so the bot can upload, list, and delete inside it.
+Files appear in your personal Drive immediately and you can download
+them through the regular web UI.
+
+### Retention
+
+Auto-retention keeps the 30 most recent daily backups plus 12 monthly
+backups (the first backup of each calendar month).
+
+### Dashboard usage
 
 You can also trigger a manual backup or restore from the dashboard at
 **Tools → Backup Database**:
@@ -201,21 +226,14 @@ You can also trigger a manual backup or restore from the dashboard at
 - **Restore dari file** — same as above, but you upload a `.sql.gz`
   from your computer instead of selecting one already in Drive.
 
-Requirements:
+### Requirements
 
 - `pg_dump` and `psql` must be on the host's PATH
   (`apt install postgresql-client` on Debian/Ubuntu).
 - The `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_PRIVATE_KEY` env vars
-  are reused — no extra credential is required. The "QTAssist Backups"
-  folder is created on first use and lives in the service account's
-  own Drive.
-- To download backups manually, share the folder with your personal
-  Google account (the bot does not do this for you, on purpose):
-
-```
-# Find the folder ID once via the dashboard logs or the Drive API,
-# then in Google Sheets / Drive UI share the folder with your email.
-```
+  are reused.
+- `GOOGLE_BACKUP_FOLDER_ID` must be set to a folder ID that the
+  service account has Editor access to.
 
 Restoring is destructive: every table is dropped and recreated from the
 SQL dump. The dashboard requires you to type `RESTORE` before the call

@@ -45,8 +45,18 @@ function buildPgEnv() {
 }
 
 /**
- * Find or create the "QTAssist Backups" folder on the service account's
- * Drive. Cached for the process lifetime.
+ * Resolve the Drive folder for backup uploads.
+ *
+ * Order of resolution:
+ *   1. GOOGLE_BACKUP_FOLDER_ID env var if set — used directly. The folder
+ *      must be owned by a regular Google account (not the service account)
+ *      and shared with the service account email with Editor access. This
+ *      is the recommended setup because Google service accounts do not
+ *      have their own Drive storage quota.
+ *   2. Auto-create / find a "QTAssist Backups" folder owned by the service
+ *      account. Only works if the service account has access to a Shared
+ *      Drive or has been granted storage via Workspace; on regular Google
+ *      Cloud projects this fails with "storageQuotaExceeded".
  */
 async function ensureBackupFolder() {
   if (cachedFolderId) return cachedFolderId;
@@ -56,6 +66,26 @@ async function ensureBackupFolder() {
     throw new Error('Google Drive belum dikonfigurasi (cek GOOGLE_SERVICE_ACCOUNT_EMAIL dan GOOGLE_PRIVATE_KEY)');
   }
   const { drive } = client;
+
+  const explicitFolderId = process.env.GOOGLE_BACKUP_FOLDER_ID;
+  if (explicitFolderId) {
+    // Verify it's reachable. If the service account hasn't been granted
+    // Editor access, this will throw with a 404, which is a much better
+    // failure mode than uploading and finding out later.
+    try {
+      await drive.files.get({
+        fileId: explicitFolderId,
+        fields: 'id, name, mimeType, capabilities'
+      });
+    } catch (error) {
+      throw new Error(
+        `Folder backup (GOOGLE_BACKUP_FOLDER_ID=${explicitFolderId}) tidak ditemukan atau service account belum di-share. ` +
+        `Pastikan folder di-share ke ${process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL} dengan akses Editor.`
+      );
+    }
+    cachedFolderId = explicitFolderId;
+    return cachedFolderId;
+  }
 
   // Search existing folder owned by the service account
   const query = [
@@ -76,17 +106,29 @@ async function ensureBackupFolder() {
     return cachedFolderId;
   }
 
-  // Create
-  const created = await drive.files.create({
-    requestBody: {
-      name: BACKUP_FOLDER_NAME,
-      mimeType: 'application/vnd.google-apps.folder'
-    },
-    fields: 'id'
-  });
-
-  cachedFolderId = created.data.id;
-  return cachedFolderId;
+  // Create — only succeeds if the service account has storage quota,
+  // which standard service accounts on regular Google Cloud projects do
+  // not. The error from Google is "storageQuotaExceeded".
+  try {
+    const created = await drive.files.create({
+      requestBody: {
+        name: BACKUP_FOLDER_NAME,
+        mimeType: 'application/vnd.google-apps.folder'
+      },
+      fields: 'id'
+    });
+    cachedFolderId = created.data.id;
+    return cachedFolderId;
+  } catch (error) {
+    if (error?.errors?.[0]?.reason === 'storageQuotaExceeded' || /storageQuotaExceeded/i.test(error.message || '')) {
+      throw new Error(
+        'Service account tidak punya quota Drive. Buat folder di Drive personal kamu, share ke ' +
+        `${process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL} (akses Editor), lalu set GOOGLE_BACKUP_FOLDER_ID=<folder id> ` +
+        'di .env dan restart bot.'
+      );
+    }
+    throw error;
+  }
 }
 
 function pad(n) {
