@@ -11,6 +11,7 @@ import AuditLog from './pages/AuditLog.jsx';
 import UserLookup from './pages/UserLookup.jsx';
 import DiscordPost from './pages/DiscordPost.jsx';
 import BotStatus from './pages/BotStatus.jsx';
+import Backups from './pages/Backups.jsx';
 
 function FullPageMessage({ children }) {
   return (
@@ -68,6 +69,7 @@ export default function App() {
       <Route path="/audit" element={<ProtectedShell><AuditLog /></ProtectedShell>} />
       <Route path="/discord-post" element={<ProtectedShell><DiscordPost /></ProtectedShell>} />
       <Route path="/bot-status" element={<ProtectedShell><BotStatus /></ProtectedShell>} />
+      <Route path="/backups" element={<ProtectedShell><Backups /></ProtectedShell>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -4,6 +4,8 @@ const { Op } = require('sequelize');
 const { createWarningEmbed, createInfoEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 const { syncActiveUsersToSheets } = require('./googleSheetsService');
 const { recordCronStart } = require('./cronStatus');
+const { createBackup, pruneOldBackups } = require('./backupService');
+const { emitEvent } = require('./eventBus');
 
 let client = null;
 
@@ -327,6 +329,34 @@ function startCronJobs(discordClient) {
       }
       return { guildsProcessed: processed, guildsFailed: failed };
     })
+  );
+
+  // Daily database backup at 03:00 Asia/Jakarta. node-cron interprets the
+  // expression in the system timezone, so we explicitly pin to WIB.
+  cron.schedule(
+    '0 3 * * *',
+    trackedCron('dailyDatabaseBackup', async () => {
+      try {
+        const backup = await createBackup({ source: 'cron' });
+        emitEvent('backup.created', {
+          id: backup.id,
+          name: backup.name,
+          size: backup.size,
+          source: 'cron',
+          adminUsername: 'system'
+        });
+        const pruneResult = await pruneOldBackups();
+        return {
+          backupName: backup.name,
+          backupSize: backup.size,
+          ...pruneResult
+        };
+      } catch (error) {
+        console.error('❌ Daily backup failed:', error.message);
+        throw error;
+      }
+    }),
+    { timezone: 'Asia/Jakarta' }
   );
 
   console.log('✅ Cron jobs started successfully.');

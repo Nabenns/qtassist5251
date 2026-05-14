@@ -10,6 +10,7 @@ import {
   ListChecks,
   Send,
   Activity,
+  Database,
   LogOut,
   Moon,
   Sun,
@@ -51,7 +52,8 @@ const navSections = [
       { to: '/users', label: 'Cari User', icon: Search },
       { to: '/audit', label: 'Audit Log', icon: ListChecks },
       { to: '/discord-post', label: 'Posting Discord', icon: Send },
-      { to: '/bot-status', label: 'Status Bot', icon: Activity }
+      { to: '/bot-status', label: 'Status Bot', icon: Activity },
+      { to: '/backups', label: 'Backup Database', icon: Database }
     ]
   }
 ];

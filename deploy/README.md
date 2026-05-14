@@ -14,8 +14,9 @@ Tested on Ubuntu 22.04 / 24.04. Adjust paths for other distros.
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs build-essential
 
-# PostgreSQL
-sudo apt install -y postgresql postgresql-contrib
+# PostgreSQL (server + client tools — pg_dump and psql are required for the
+# admin dashboard backup/restore feature)
+sudo apt install -y postgresql postgresql-contrib postgresql-client
 
 # nginx + certbot
 sudo apt install -y nginx certbot python3-certbot-nginx
@@ -179,3 +180,43 @@ email bindings — all backed by the same database the bot uses.
 - [ ] Discord bot has only the permissions it actually needs
 - [ ] `.env` file is `chmod 600` and owned by the deploy user
 - [ ] Regular Postgres backups (`pg_dump`) or volume snapshots
+
+## 8. Database backups (automated to Google Drive)
+
+The bot runs a daily cron at 03:00 Asia/Jakarta that calls `pg_dump`,
+gzips the output, and uploads the file to a `QTAssist Backups` folder
+on the Google service account's Drive. Auto-retention keeps the 30
+most recent daily backups plus 12 monthly backups (the first backup of
+each calendar month).
+
+You can also trigger a manual backup or restore from the dashboard at
+**Tools → Backup Database**:
+
+- **Backup sekarang** — runs `pg_dump` immediately and uploads to
+  Drive. Optional note is stored in the file metadata.
+- **Download** — streams the `.sql.gz` from Drive back through the
+  bot to your browser.
+- **Restore** — replaces the entire current database with the contents
+  of the chosen backup. Requires typing `RESTORE` to confirm.
+- **Restore dari file** — same as above, but you upload a `.sql.gz`
+  from your computer instead of selecting one already in Drive.
+
+Requirements:
+
+- `pg_dump` and `psql` must be on the host's PATH
+  (`apt install postgresql-client` on Debian/Ubuntu).
+- The `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_PRIVATE_KEY` env vars
+  are reused — no extra credential is required. The "QTAssist Backups"
+  folder is created on first use and lives in the service account's
+  own Drive.
+- To download backups manually, share the folder with your personal
+  Google account (the bot does not do this for you, on purpose):
+
+```
+# Find the folder ID once via the dashboard logs or the Drive API,
+# then in Google Sheets / Drive UI share the folder with your email.
+```
+
+Restoring is destructive: every table is dropped and recreated from the
+SQL dump. The dashboard requires you to type `RESTORE` before the call
+goes through.

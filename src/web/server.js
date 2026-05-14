@@ -16,6 +16,7 @@ const buildDiscordPostsRouter = require('./routes/discordPosts');
 const buildUsersRouter = require('./routes/users');
 const buildBotRouter = require('./routes/bot');
 const buildEventsRouter = require('./routes/events');
+const buildBackupsRouter = require('./routes/backups');
 
 /**
  * Build the admin web Express app and mount it on a port.
@@ -75,6 +76,7 @@ function startWebServer({ getDiscordClient }) {
   app.use('/api/discord-posts', buildDiscordPostsRouter({ getDiscordClient }));
   app.use('/api/bot', buildBotRouter({ getDiscordClient, getProcessStartedAt }));
   app.use('/api/events', buildEventsRouter());
+  app.use('/api/backups', buildBackupsRouter());
 
   // 404 for unknown /api/* requests so they don't fall through to the SPA
   app.use('/api', (req, res) => {
