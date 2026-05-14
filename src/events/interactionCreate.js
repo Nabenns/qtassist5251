@@ -2,7 +2,7 @@ const { Op } = require('sequelize');
 const { Product, Transaction, TemporaryRole, EmailBinding, DriveConfig } = require('../database/models');
 const { createSuccessEmbed, createErrorEmbed, createInfoEmbed, createWarningEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 const { formatDuration } = require('../utils/parseDuration');
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
 const { syncTransactionToSheets } = require('../services/googleSheetsService');
 const { shareMultipleDriveFiles, revokeMultipleDriveAccess } = require('../services/googleDriveService');
 
@@ -88,6 +88,11 @@ module.exports = {
 
         if (interaction.customId === 'myinfo_purchases') {
           await handleMyInfoPurchases(interaction);
+        }
+
+        // Handle role claim button
+        if (interaction.customId.startsWith('claim_role_')) {
+          await handleClaimRole(interaction);
         }
       } catch (error) {
         console.error('Error handling button interaction:', error);
@@ -1135,6 +1140,85 @@ async function handleMyInfoPurchases(interaction) {
       embeds: [createErrorEmbed(
         'Error',
         'Terjadi kesalahan saat mengambil riwayat pembelian. Silakan coba lagi.'
+      )]
+    });
+  }
+}
+
+// ============================================================
+// Role claim button handler (used by /role-claim-setup)
+// Clicking a claim_role_<roleId> button assigns that role to the
+// clicking user. If the user already has the role, we just say so.
+// ============================================================
+
+async function handleClaimRole(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const roleId = interaction.customId.replace('claim_role_', '');
+  const guild = interaction.guild;
+  const member = interaction.member;
+
+  try {
+    const role = guild.roles.cache.get(roleId);
+
+    if (!role) {
+      return interaction.editReply({
+        embeds: [createErrorEmbed(
+          'Role Tidak Ditemukan',
+          'Role ini sudah tidak ada di server. Hubungi admin untuk update tombol.'
+        )]
+      });
+    }
+
+    if (member.roles.cache.has(role.id)) {
+      return interaction.editReply({
+        embeds: [createInfoEmbed(
+          'Sudah Punya Role',
+          `Kamu sudah punya role ${role}. Tidak ada yang perlu di-klaim.`
+        )]
+      });
+    }
+
+    // Re-validate hierarchy at click time in case role positions changed
+    // since the button was set up.
+    const botMember = guild.members.me;
+    if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+      return interaction.editReply({
+        embeds: [createErrorEmbed(
+          'Bot Tidak Punya Permission',
+          'Bot tidak punya permission **Manage Roles**. Hubungi admin.'
+        )]
+      });
+    }
+
+    if (role.managed || role.id === guild.id || role.position >= botMember.roles.highest.position) {
+      return interaction.editReply({
+        embeds: [createErrorEmbed(
+          'Tidak Bisa Memberikan Role',
+          'Bot tidak bisa memberikan role ini (managed role atau posisi lebih tinggi dari role bot). Hubungi admin.'
+        )]
+      });
+    }
+
+    await member.roles.add(role, `Self-claimed via /role-claim-setup button`);
+
+    return interaction.editReply({
+      embeds: [createSuccessEmbed(
+        'Role Berhasil Diklaim',
+        `Role ${role} berhasil diberikan ke kamu!`,
+        [
+          { name: '🎭 Role', value: `${role}`, inline: true },
+          { name: '👤 User', value: `<@${member.id}>`, inline: true }
+        ]
+      )]
+    });
+
+  } catch (error) {
+    console.error('Error claiming role:', error);
+    return interaction.editReply({
+      embeds: [createErrorEmbed(
+        'Error',
+        'Terjadi kesalahan saat memberikan role. Silakan coba lagi atau hubungi admin.'
       )]
     });
   }

@@ -124,6 +124,19 @@ module.exports = {
       inline: false
     });
 
+    // Role claim button setup
+    embed.addFields({
+      name: '🎯 **Role Claim Button** (Admin Only)',
+      value: [
+        '`/role-claim-setup #channel role1 [role2..role5] [title] [description] [button_style]`',
+        '├ Post message dengan tombol untuk klaim role',
+        '├ Bisa setup hingga **5 role** sekaligus dalam satu message',
+        '├ User klik tombol → role langsung dikasih',
+        '└ **Contoh:** `/role-claim-setup #announcement role1:@Member`'
+      ].join('\n'),
+      inline: false
+    });
+
     // Duration Format
     embed.addFields({
       name: '⏱️ **Format Durasi**',
