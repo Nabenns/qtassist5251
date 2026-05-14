@@ -946,7 +946,7 @@ async function handleMyInfoRoles(interaction) {
     }
 
     const embed = createSuccessEmbed(
-      '?? Role Temporary Kamu',
+      '🎭 Role Temporary Kamu',
       activeRoles.length > 0
         ? `Kamu punya **${activeRoles.length}** role temporary yang aktif.`
         : 'Semua role kamu sudah kadaluarsa.',
@@ -974,7 +974,7 @@ async function handleMyInfoRoles(interaction) {
 
         embed.addFields({
           name: `${role.name}`,
-          value: `? **Sisa waktu:** ${timeRemaining}\n?? **Kadaluarsa:** <t:${expiresTimestamp}:R>\n?? **Diberikan:** <t:${Math.floor(tempRole.grantedAt.getTime() / 1000)}:R>`,
+          value: `⏳ **Sisa waktu:** ${timeRemaining}\n📅 **Kadaluarsa:** <t:${expiresTimestamp}:R>\n🔖 **Diberikan:** <t:${Math.floor(tempRole.grantedAt.getTime() / 1000)}:R>`,
           inline: false
         });
       }
@@ -983,7 +983,7 @@ async function handleMyInfoRoles(interaction) {
     if (expiredRoles.length > 0) {
       const expiredRoleNames = expiredRoles.map(({ role }) => role.name).join(', ');
       embed.addFields({
-        name: '?? Role Kadaluarsa (akan segera dihapus)',
+        name: '⚠️ Role Kadaluarsa (akan segera dihapus)',
         value: expiredRoleNames,
         inline: false
       });
@@ -1091,21 +1091,21 @@ async function handleMyInfoPurchases(interaction) {
     const totalSpent = paidTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
     const embed = createSuccessEmbed(
-      '?? My Purchases',
+      '🛒 My Purchases',
       `Purchase history for ${user.tag}`,
       [
         {
-          name: '? Active Roles',
+          name: '✅ Active Roles',
           value: activeRolesText,
           inline: false
         },
         {
-          name: '?? Statistics',
+          name: '📊 Statistics',
           value: `Total Purchases: **${paidTransactions.length}**\nTotal Spent: **${formatIDR(totalSpent)}**\nPending Orders: **${pendingTransactions.length}**`,
           inline: false
         },
         {
-          name: '?? Recent Purchases (Last 5)',
+          name: '🕒 Recent Purchases (Last 5)',
           value: historyText,
           inline: false
         }
@@ -1114,14 +1114,14 @@ async function handleMyInfoPurchases(interaction) {
 
     if (pendingTransactions.length > 0) {
       embed.addFields({
-        name: '? Pending Payments',
+        name: '⏳ Pending Payments',
         value: pendingText,
         inline: false
       });
     }
 
     embed.setFooter({
-      text: `${guild.name} � Personal info � only visible to you`,
+      text: `${guild.name} • Personal info — only visible to you`,
       iconURL: QTRADES_LOGO_URL || guild.iconURL({ dynamic: true })
     })
     .setThumbnail(QTRADES_LOGO_URL || user.displayAvatarURL({ dynamic: true }))
