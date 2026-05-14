@@ -103,8 +103,13 @@ router.get('/timeseries', async (req, res) => {
     // Postgres-specific: bucket by day in Asia/Jakarta. The dialect of this
     // bot is always 'postgres' (see package.json dependencies), so it is
     // safe to use date_trunc here.
-    const dayBucket = literal("date_trunc('day', created_at AT TIME ZONE 'Asia/Jakarta')");
-    const dayBucketPaid = literal("date_trunc('day', paid_at AT TIME ZONE 'Asia/Jakarta')");
+    //
+    // Sequelize automatically quotes camelCase column names because the
+    // Transaction model uses `timestamps: true` without `underscored: true`,
+    // so the actual columns are "createdAt" and "updatedAt". `paidAt` has
+    // an explicit `field: 'paid_at'` mapping so it lives in `paid_at`.
+    const dayBucket = literal(`date_trunc('day', "createdAt" AT TIME ZONE 'Asia/Jakarta')`);
+    const dayBucketPaid = literal(`date_trunc('day', paid_at AT TIME ZONE 'Asia/Jakarta')`);
 
     // Daily revenue from approved transactions, bucketed by paidAt
     const revenueRows = await Transaction.findAll({
