@@ -17,10 +17,13 @@ module.exports = {
     embed.addFields({
       name: '👤 **User Commands**',
       value: [
-        '`/my-roles` - Cek role temporary kamu dan kapan kadaluarsanya',
-        '`/my-purchases` - Lihat riwayat pembelian kamu',
         '`/my-email` - Cek email terdaftar untuk akses konten',
-        '`/help` - Tampilkan menu bantuan ini'
+        '`/help` - Tampilkan menu bantuan ini',
+        '',
+        '**Cek Role & Riwayat Pembelian:**',
+        '• Buka channel **My Info** yang disediakan admin',
+        '• Klik tombol 🎭 **Cek Role** untuk lihat role temporary aktif',
+        '• Klik tombol 🛒 **Riwayat Pembelian** untuk lihat history transaksi'
       ].join('\n'),
       inline: false
     });
@@ -105,6 +108,18 @@ module.exports = {
         '`/drive-setup list` - Lihat config Drive',
         '`/drive-setup enable` - Aktifkan auto-share',
         '`/drive-setup role <permission>` - Set permission level'
+      ].join('\n'),
+      inline: false
+    });
+
+    // My Info channel setup
+    embed.addFields({
+      name: '👤 **My Info Channel** (Admin Only)',
+      value: [
+        '`/myinfo-setup #channel`',
+        '├ Setup channel "My Info" dengan 2 button:',
+        '├ 🎭 Cek Role - Lihat role temporary aktif user',
+        '└ 🛒 Riwayat Pembelian - Lihat history transaksi user'
       ].join('\n'),
       inline: false
     });
