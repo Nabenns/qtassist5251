@@ -82,8 +82,8 @@ export default function BotStatus() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Bot Status"
-        description="Live monitoring untuk uptime, gateway ping, database, dan cron jobs."
+        title="Status Bot"
+        description="Monitoring uptime, gateway ping, database, dan cron jobs."
         actions={
           <div className="flex items-center gap-2">
             <label className="flex items-center gap-2 text-sm text-fg-muted">
@@ -93,10 +93,10 @@ export default function BotStatus() {
                 checked={auto}
                 onChange={(e) => setAuto(e.target.checked)}
               />
-              Auto-refresh (15s)
+              Refresh otomatis (15d)
             </label>
             <Button variant="secondary" leadingIcon={RefreshCw} onClick={load} loading={loading}>
-              Refresh
+              Muat ulang
             </Button>
           </div>
         }
@@ -130,18 +130,18 @@ function StatusContent({ data }) {
         <BigStat
           icon={Wifi}
           label="Discord Gateway"
-          value={discord?.ready ? 'Connected' : 'Disconnected'}
+          value={discord?.ready ? 'Terhubung' : 'Terputus'}
           tone={discord?.ready ? 'success' : 'danger'}
           hint={
             discord?.ready
-              ? `Ping ${discord.ping}ms · ${discord.guildCount} guilds`
-              : 'Bot not ready'
+              ? `Ping ${discord.ping}ms · ${discord.guildCount} server`
+              : 'Bot tidak siap'
           }
         />
         <BigStat
           icon={Database}
           label="Database"
-          value={database?.status === 'ok' ? 'Healthy' : 'Error'}
+          value={database?.status === 'ok' ? 'Sehat' : 'Error'}
           tone={database?.status === 'ok' ? 'success' : 'danger'}
           hint={`${database?.dialect || '-'} · ${
             Number.isFinite(database?.latencyMs) ? `${database.latencyMs}ms` : '-'
@@ -156,7 +156,7 @@ function StatusContent({ data }) {
         />
         <BigStat
           icon={Cpu}
-          label="Memory (RSS)"
+          label="Memori (RSS)"
           value={formatBytes(proc.memory?.rss)}
           tone="neutral"
           hint={`Heap ${formatBytes(proc.memory?.heapUsed)} / ${formatBytes(proc.memory?.heapTotal)}`}
@@ -170,23 +170,23 @@ function StatusContent({ data }) {
             <Row k="User" v={discord?.username ? `${discord.username} (${discord.userId})` : '-'} />
             <Row k="Status" v={
               discord?.ready ? (
-                <Badge tone="success" dot>Ready</Badge>
+                <Badge tone="success" dot>Siap</Badge>
               ) : (
-                <Badge tone="danger" dot>Not ready</Badge>
+                <Badge tone="danger" dot>Tidak siap</Badge>
               )
             } />
             <Row k="Gateway ping" v={
               <Badge tone={pingTone(discord?.ping)}>{discord?.ping ?? '-'} ms</Badge>
             } />
-            <Row k="Guilds" v={discord?.guildCount ?? 0} />
-            <Row k="Total members" v={discord?.totalMembers?.toLocaleString('id-ID') ?? 0} />
+            <Row k="Server" v={discord?.guildCount ?? 0} />
+            <Row k="Total member" v={discord?.totalMembers?.toLocaleString('id-ID') ?? 0} />
             {discord?.guilds?.length ? (
               <div className="mt-3 max-h-56 overflow-y-auto rounded-md border border-border">
                 <table className="min-w-full divide-y divide-border text-sm">
                   <thead className="bg-surface-2">
                     <tr className="text-left text-xs uppercase text-muted-fg">
-                      <th className="px-3 py-1.5">Guild</th>
-                      <th className="px-3 py-1.5">Members</th>
+                      <th className="px-3 py-1.5">Server</th>
+                      <th className="px-3 py-1.5">Member</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -207,14 +207,14 @@ function StatusContent({ data }) {
         </Card>
 
         <Card>
-          <CardHeader title="Process" description={`PID ${proc.pid} · ${proc.platform}/${proc.arch}`} />
+          <CardHeader title="Proses" description={`PID ${proc.pid} · ${proc.platform}/${proc.arch}`} />
           <CardBody className="space-y-3">
             <Row k="Hostname" v={proc.hostname} />
             <Row k="Node" v={proc.nodeVersion} />
-            <Row k="Started" v={formatDateTime(proc.startedAt)} />
+            <Row k="Mulai jalan" v={formatDateTime(proc.startedAt)} />
             <Row k="Uptime" v={formatUptime(proc.uptimeSeconds)} />
-            <Row k="System total memory" v={formatBytes(proc.totalMemory)} />
-            <Row k="System free memory" v={formatBytes(proc.freeMemory)} />
+            <Row k="Total memori sistem" v={formatBytes(proc.totalMemory)} />
+            <Row k="Memori sistem tersisa" v={formatBytes(proc.freeMemory)} />
             <Row
               k="Load average (1m / 5m / 15m)"
               v={proc.loadAvg?.map((n) => n.toFixed(2)).join(' / ') || '-'}
@@ -224,20 +224,20 @@ function StatusContent({ data }) {
       </div>
 
       <Card>
-        <CardHeader title="Counters" description="Snapshot dari database" />
+        <CardHeader title="Counter" description="Ringkasan dari database" />
         <CardBody className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Stat label="Admins" value={counters?.adminUsers ?? 0} />
-          <Stat label="Total transactions" value={counters?.totalTransactions ?? 0} />
-          <Stat label="Active temp roles" value={counters?.activeTempRoles ?? 0} />
-          <Stat label="Cron jobs tracked" value={cron?.length ?? 0} />
+          <Stat label="Admin" value={counters?.adminUsers ?? 0} />
+          <Stat label="Total transaksi" value={counters?.totalTransactions ?? 0} />
+          <Stat label="Role sementara aktif" value={counters?.activeTempRoles ?? 0} />
+          <Stat label="Cron jobs dilacak" value={cron?.length ?? 0} />
         </CardBody>
       </Card>
 
       <Card>
-        <CardHeader title="Cron Jobs" description="Last run status untuk setiap scheduled job." />
+        <CardHeader title="Cron Jobs" description="Status dari setiap scheduled job." />
         <CardBody className="space-y-2">
           {!cron || cron.length === 0 ? (
-            <div className="text-sm text-muted-fg">Belum ada cron yang fire sejak bot start.</div>
+            <div className="text-sm text-muted-fg">Belum ada cron yang berjalan sejak bot start.</div>
           ) : (
             cron.map((job) => <CronRow key={job.name} job={job} />)
           )}
@@ -287,10 +287,10 @@ function CronRow({ job }) {
           {Number.isFinite(job.durationMs) ? (
             <span className="text-xs text-muted-fg">{job.durationMs}ms</span>
           ) : null}
-          <span className="text-xs text-muted-fg">runs: {job.count}</span>
+          <span className="text-xs text-muted-fg">jumlah: {job.count}</span>
         </div>
         <div className="mt-0.5 text-xs text-muted-fg">
-          last run · {formatDateTime(job.last)}
+          terakhir berjalan · {formatDateTime(job.last)}
         </div>
         {job.error ? (
           <div className="mt-1 text-xs text-danger">{job.error}</div>

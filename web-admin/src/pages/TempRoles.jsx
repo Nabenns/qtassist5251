@@ -58,11 +58,11 @@ export default function TempRoles() {
     setBusy(true);
     try {
       await api.delete(`/api/temproles/${confirmRemove.id}`);
-      toast.success('Temporary role removed');
+      toast.success('Role sementara dihapus');
       setConfirmRemove(null);
       load();
     } catch (err) {
-      toast.error('Failed to remove', {
+      toast.error('Gagal menghapus', {
         description: err instanceof ApiError ? err.message : 'Coba lagi.'
       });
     } finally {
@@ -73,15 +73,15 @@ export default function TempRoles() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Temporary Roles"
-        description="Lihat, tambah, perpanjang, atau hapus temporary role assignments."
+        title="Role Sementara"
+        description="Lihat, tambah, perpanjang, atau hapus pemberian role sementara."
         actions={
           <div className="flex items-center gap-2">
             <FormField className="min-w-[160px]">
               <Select value={filter} onChange={(e) => setFilter(e.target.value)}>
-                <option value="true">Active</option>
-                <option value="expired">Expired</option>
-                <option value="false">All</option>
+                <option value="true">Aktif</option>
+                <option value="expired">Kadaluarsa</option>
+                <option value="false">Semua</option>
               </Select>
             </FormField>
             <Button
@@ -90,10 +90,10 @@ export default function TempRoles() {
               loading={loading}
               leadingIcon={RefreshCw}
             >
-              Refresh
+              Muat ulang
             </Button>
             <Button leadingIcon={Plus} onClick={() => setCreating(true)}>
-              Grant role
+              Berikan role
             </Button>
           </div>
         }
@@ -111,9 +111,9 @@ export default function TempRoles() {
             <TR>
               <TH>User ID</TH>
               <TH>Role ID</TH>
-              <TH>Granted</TH>
-              <TH>Expires</TH>
-              <TH>Reason</TH>
+              <TH>Diberikan</TH>
+              <TH>Kadaluarsa</TH>
+              <TH>Alasan</TH>
               <TH align="right"></TH>
             </TR>
           </THead>
@@ -123,9 +123,9 @@ export default function TempRoles() {
             <TableEmpty
               columns={6}
               icon={Clock}
-              title="Tidak ada role temporary"
-              description="Grant role baru pakai tombol di kanan atas."
-              action={<Button leadingIcon={Plus} onClick={() => setCreating(true)}>Grant role</Button>}
+              title="Tidak ada role sementara"
+              description="Berikan role baru pakai tombol di kanan atas."
+              action={<Button leadingIcon={Plus} onClick={() => setCreating(true)}>Berikan role</Button>}
             />
           ) : (
             <TBody>
@@ -141,7 +141,7 @@ export default function TempRoles() {
                         {formatDateTime(r.expiresAt)}
                       </div>
                       {expired ? (
-                        <div className="text-xs text-danger">Expired</div>
+                        <div className="text-xs text-danger">Kadaluarsa</div>
                       ) : null}
                     </TD>
                     <TD className="max-w-[280px] truncate text-fg-muted">
@@ -157,7 +157,7 @@ export default function TempRoles() {
                           leadingIcon={FastForward}
                           onClick={() => setExtending(r)}
                         >
-                          Extend
+                          Perpanjang
                         </Button>
                         <Button
                           size="sm"
@@ -165,7 +165,7 @@ export default function TempRoles() {
                           leadingIcon={Trash2}
                           onClick={() => setConfirmRemove(r)}
                         >
-                          Remove
+                          Hapus
                         </Button>
                       </div>
                     </TD>
@@ -179,7 +179,7 @@ export default function TempRoles() {
 
       <Modal open={!!confirmRemove} onOpenChange={(open) => !open && setConfirmRemove(null)}>
         <ModalHeader
-          title="Remove Temporary Role?"
+          title="Hapus role sementara?"
           description="User akan kehilangan role di Discord, dan record dihapus dari database."
           onClose={() => setConfirmRemove(null)}
         />
@@ -187,15 +187,15 @@ export default function TempRoles() {
           <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm space-y-1">
             <div>User ID: <span className="font-mono text-xs">{confirmRemove?.userId}</span></div>
             <div>Role ID: <span className="font-mono text-xs">{confirmRemove?.roleId}</span></div>
-            <div>Expires: <span className="text-muted-fg">{confirmRemove ? formatDateTime(confirmRemove.expiresAt) : ''}</span></div>
+            <div>Kadaluarsa: <span className="text-muted-fg">{confirmRemove ? formatDateTime(confirmRemove.expiresAt) : ''}</span></div>
           </div>
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setConfirmRemove(null)} disabled={busy}>
-            Cancel
+            Batal
           </Button>
           <Button variant="danger" onClick={handleConfirmRemove} loading={busy} leadingIcon={Trash2}>
-            Yes, remove
+            Ya, hapus
           </Button>
         </ModalFooter>
       </Modal>
@@ -205,7 +205,7 @@ export default function TempRoles() {
         onClose={() => setCreating(false)}
         onCreated={() => {
           setCreating(false);
-          toast.success('Role granted');
+          toast.success('Role diberikan');
           load();
         }}
       />
@@ -215,7 +215,7 @@ export default function TempRoles() {
         onClose={() => setExtending(null)}
         onExtended={() => {
           setExtending(null);
-          toast.success('Extended');
+          toast.success('Diperpanjang');
           load();
         }}
       />
@@ -287,7 +287,7 @@ function CreateModal({ open, onClose, onCreated }) {
       });
       onCreated();
     } catch (err) {
-      toast.error('Grant failed', {
+      toast.error('Gagal memberikan role', {
         description: err instanceof ApiError ? err.message || err.code : 'Coba lagi.'
       });
     } finally {
@@ -298,15 +298,15 @@ function CreateModal({ open, onClose, onCreated }) {
   return (
     <Modal open={open} onOpenChange={(o) => !o && onClose()}>
       <ModalHeader
-        title="Grant Temporary Role"
-        description="Berikan role temporary ke user. Akan stack kalau user sudah punya role yang sama."
+        title="Berikan Role Sementara"
+        description="Berikan role sementara ke user. Akan stack jika user sudah punya role yang sama."
         onClose={onClose}
       />
       <ModalBody>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <FormField label="Guild">
+          <FormField label="Server">
             <Select value={guildId} onChange={(e) => setGuildId(e.target.value)}>
-              <option value="">Pilih guild...</option>
+              <option value="">Pilih server...</option>
               {guilds.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
@@ -320,11 +320,11 @@ function CreateModal({ open, onClose, onCreated }) {
               onChange={(e) => setRoleId(e.target.value)}
               disabled={!guildId || rolesLoading}
             >
-              <option value="">{guildId ? 'Pilih role...' : 'Pilih guild dulu'}</option>
+              <option value="">{guildId ? 'Pilih role...' : 'Pilih server dulu'}</option>
               {roles.map((r) => (
                 <option key={r.id} value={r.id} disabled={!r.assignable}>
                   {r.name}
-                  {!r.assignable ? ' (not assignable)' : ''}
+                  {!r.assignable ? ' (tidak bisa di-assign)' : ''}
                 </option>
               ))}
             </Select>
@@ -338,20 +338,20 @@ function CreateModal({ open, onClose, onCreated }) {
           />
         </FormField>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <FormField label="Duration" hint="Format: 30d, 1w, 12h, 1d12h, dll.">
+          <FormField label="Durasi" hint="Format: 30d, 1w, 12h, 1d12h, dll.">
             <Input value={duration} onChange={(e) => setDuration(e.target.value)} />
           </FormField>
-          <FormField label="Reason (opsional)">
+          <FormField label="Alasan (opsional)">
             <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Hadiah event" />
           </FormField>
         </div>
       </ModalBody>
       <ModalFooter>
         <Button variant="secondary" onClick={onClose} disabled={busy}>
-          Cancel
+          Batal
         </Button>
         <Button onClick={handleSubmit} loading={busy} leadingIcon={Plus}>
-          Grant role
+          Berikan role
         </Button>
       </ModalFooter>
     </Modal>
@@ -374,7 +374,7 @@ function ExtendModal({ record, onClose, onExtended }) {
       await api.post(`/api/temproles/${record.id}/extend`, { duration });
       onExtended();
     } catch (err) {
-      toast.error('Extend failed', {
+      toast.error('Gagal memperpanjang', {
         description: err instanceof ApiError ? err.message || err.code : 'Coba lagi.'
       });
     } finally {
@@ -385,8 +385,8 @@ function ExtendModal({ record, onClose, onExtended }) {
   return (
     <Modal open={!!record} onOpenChange={(o) => !o && onClose()}>
       <ModalHeader
-        title="Extend Temporary Role"
-        description="Tambah durasi ke temporary role yang ada. Notification flags 24h/1h direset."
+        title="Perpanjang Role Sementara"
+        description="Tambah durasi ke role sementara yang ada. Notifikasi 24 jam dan 1 jam direset."
         onClose={onClose}
       />
       <ModalBody>
@@ -394,19 +394,19 @@ function ExtendModal({ record, onClose, onExtended }) {
           <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm space-y-1">
             <div>User ID: <span className="font-mono text-xs">{record.userId}</span></div>
             <div>Role ID: <span className="font-mono text-xs">{record.roleId}</span></div>
-            <div>Current expiry: <span className="text-muted-fg">{formatDateTime(record.expiresAt)}</span></div>
+            <div>Kadaluarsa saat ini: <span className="text-muted-fg">{formatDateTime(record.expiresAt)}</span></div>
           </div>
         ) : null}
-        <FormField label="Extend by" hint="Format: 30d, 1w, 12h, 1d12h, dll.">
+        <FormField label="Tambah durasi" hint="Format: 30d, 1w, 12h, 1d12h, dll.">
           <Input value={duration} onChange={(e) => setDuration(e.target.value)} />
         </FormField>
       </ModalBody>
       <ModalFooter>
         <Button variant="secondary" onClick={onClose} disabled={busy}>
-          Cancel
+          Batal
         </Button>
         <Button onClick={handleSubmit} loading={busy} leadingIcon={FastForward}>
-          Extend
+          Perpanjang
         </Button>
       </ModalFooter>
     </Modal>

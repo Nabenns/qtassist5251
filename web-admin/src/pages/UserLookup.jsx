@@ -61,7 +61,6 @@ export default function UserLookup() {
       setLoading(false);
     }
   }, []);
-
   // Reload whenever the URL :userId changes (deep-link friendly).
   useEffect(() => {
     if (paramId) {
@@ -84,8 +83,8 @@ export default function UserLookup() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="User Lookup"
-        description="Search by Discord User ID untuk lihat semua aktivitas user di satu tempat."
+        title="Cari User"
+        description="Cari berdasarkan Discord User ID untuk lihat semua aktivitas user di satu tempat."
         actions={
           paramId ? (
             <Button
@@ -94,7 +93,7 @@ export default function UserLookup() {
               onClick={() => handleLoad(paramId)}
               loading={loading}
             >
-              Refresh
+              Muat ulang
             </Button>
           ) : null
         }
@@ -112,7 +111,7 @@ export default function UserLookup() {
               />
             </FormField>
             <Button type="submit" loading={loading}>
-              Lookup
+              Cari
             </Button>
             <Button
               type="button"
@@ -123,10 +122,10 @@ export default function UserLookup() {
                   return;
                 }
                 navigator.clipboard?.writeText(query.trim());
-                toast.success('Copied to clipboard');
+                toast.success('Tersalin ke clipboard');
               }}
             >
-              Copy ID
+              Salin ID
             </Button>
           </form>
         </CardBody>
@@ -192,26 +191,26 @@ function UserDetail({ data }) {
               )}
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Stat label="Total Spent" value={formatIDR(totals.totalSpent)} />
-              <Stat label="Approved" value={totals.approved} />
-              <Stat label="Pending" value={totals.pending} />
-              <Stat label="Active Roles" value={totals.activeTempRoles} />
+              <Stat label="Total Belanja" value={formatIDR(totals.totalSpent)} />
+              <Stat label="Disetujui" value={totals.approved} />
+              <Stat label="Menunggu" value={totals.pending} />
+              <Stat label="Role Aktif" value={totals.activeTempRoles} />
             </div>
           </div>
         </CardBody>
       </Card>
 
       <Card>
-        <CardHeader title={<span className="flex items-center gap-2"><Receipt className="h-4 w-4" /> Transactions</span>} description={`${totals.transactions} total`} />
+        <CardHeader title={<span className="flex items-center gap-2"><Receipt className="h-4 w-4" /> Transaksi</span>} description={`${totals.transactions} total`} />
         <DataTable>
           <THead>
             <TR>
               <TH>Order ID</TH>
-              <TH>Product</TH>
-              <TH>Amount</TH>
+              <TH>Produk</TH>
+              <TH>Jumlah</TH>
               <TH>Status</TH>
-              <TH>Created</TH>
-              <TH>Reviewed</TH>
+              <TH>Dibuat</TH>
+              <TH>Direview</TH>
             </TR>
           </THead>
           {transactions.length === 0 ? (
@@ -251,13 +250,13 @@ function UserDetail({ data }) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader title={<span className="flex items-center gap-2"><Clock className="h-4 w-4" /> Temporary Roles</span>} />
+          <CardHeader title={<span className="flex items-center gap-2"><Clock className="h-4 w-4" /> Role Sementara</span>} />
           <DataTable>
             <THead>
               <TR>
                 <TH>Role</TH>
-                <TH>Guild</TH>
-                <TH>Expires</TH>
+                <TH>Server</TH>
+                <TH>Kadaluarsa</TH>
                 <TH>Status</TH>
               </TR>
             </THead>
@@ -267,8 +266,8 @@ function UserDetail({ data }) {
                   <TD colSpan={4}>
                     <EmptyState
                       icon={Clock}
-                      title="Tidak ada role temporary"
-                      description="User ini belum pernah dapat temp role."
+                      title="Tidak ada role sementara"
+                      description="User ini belum pernah dapat role sementara."
                     />
                   </TD>
                 </TR>
@@ -289,10 +288,10 @@ function UserDetail({ data }) {
                     <TD>
                       {r.isActive ? (
                         <Badge tone="success" dot>
-                          Active
+                          Aktif
                         </Badge>
                       ) : (
-                        <Badge tone="neutral">Expired</Badge>
+                        <Badge tone="neutral">Kadaluarsa</Badge>
                       )}
                     </TD>
                   </TR>
@@ -303,13 +302,13 @@ function UserDetail({ data }) {
         </Card>
 
         <Card>
-          <CardHeader title={<span className="flex items-center gap-2"><Mail className="h-4 w-4" /> Email Bindings</span>} />
+          <CardHeader title={<span className="flex items-center gap-2"><Mail className="h-4 w-4" /> Daftar Email</span>} />
           <DataTable>
             <THead>
               <TR>
                 <TH>Email</TH>
                 <TH>Server ID</TH>
-                <TH>Registered</TH>
+                <TH>Didaftarkan</TH>
               </TR>
             </THead>
             {emails.length === 0 ? (
@@ -341,22 +340,22 @@ function UserDetail({ data }) {
 
       <Card>
         <CardHeader
-          title={<span className="flex items-center gap-2"><ListChecks className="h-4 w-4" /> Recent Moderation Log</span>}
+          title={<span className="flex items-center gap-2"><ListChecks className="h-4 w-4" /> Riwayat Moderasi Terbaru</span>}
           description={`${moderationLogs.length} entries`}
           action={
             <Link to={`/audit?targetUserId=${userId}`} className="text-sm font-medium text-primary hover:underline">
-              View all in audit log
+              Lihat semua di audit log
             </Link>
           }
         />
         <DataTable>
           <THead>
             <TR>
-              <TH>When</TH>
-              <TH>Action</TH>
+              <TH>Waktu</TH>
+              <TH>Tindakan</TH>
               <TH>Moderator</TH>
               <TH>Role</TH>
-              <TH>Reason</TH>
+              <TH>Alasan</TH>
             </TR>
           </THead>
           {moderationLogs.length === 0 ? (

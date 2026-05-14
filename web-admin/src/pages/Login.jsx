@@ -61,7 +61,7 @@ export default function Login() {
         type="button"
         onClick={toggle}
         className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-        aria-label="Toggle theme"
+        aria-label="Ganti tema"
       >
         {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
       </button>
@@ -73,7 +73,7 @@ export default function Login() {
               Q
             </div>
             <h1 className="text-lg font-semibold text-fg">QTAssist Admin</h1>
-            <p className="mt-1 text-sm text-muted-fg">Login dengan kredensial admin</p>
+            <p className="mt-1 text-sm text-muted-fg">Masuk dengan kredensial admin kamu</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -108,7 +108,7 @@ export default function Login() {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-muted-fg hover:text-fg"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -123,13 +123,13 @@ export default function Login() {
             ) : null}
 
             <Button type="submit" className="w-full" loading={submitting}>
-              {submitting ? 'Logging in...' : 'Sign in'}
+              {submitting ? 'Sedang masuk...' : 'Masuk'}
             </Button>
           </form>
         </div>
 
         <p className="mt-4 text-center text-xs text-muted-fg">
-          QTrades · Internal admin tools
+          QTrades · Tools admin internal
         </p>
       </div>
     </div>

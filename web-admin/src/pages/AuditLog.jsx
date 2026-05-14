@@ -94,17 +94,17 @@ export default function AuditLog() {
     <div className="space-y-6">
       <PageHeader
         title="Audit Log"
-        description="Riwayat tindakan moderation di Discord dan dashboard."
+        description="Riwayat tindakan moderasi di Discord dan dashboard."
         actions={
           <Button variant="secondary" leadingIcon={RefreshCw} loading={loading} onClick={load}>
-            Refresh
+            Muat ulang
           </Button>
         }
       />
 
       <Card>
         <CardBody className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <FormField label="Action Type">
+          <FormField label="Jenis Tindakan">
             <Select
               value={actionType}
               onChange={(e) => {
@@ -112,7 +112,7 @@ export default function AuditLog() {
                 setActionType(e.target.value);
               }}
             >
-              <option value="all">All actions</option>
+              <option value="all">Semua tindakan</option>
               {actionTypes.map((t) => (
                 <option key={t} value={t}>
                   {t}
@@ -120,7 +120,7 @@ export default function AuditLog() {
               ))}
             </Select>
           </FormField>
-          <FormField label="Moderator ID">
+          <FormField label="ID Moderator">
             <Input
               placeholder="Discord ID"
               value={moderatorId}
@@ -128,7 +128,7 @@ export default function AuditLog() {
               onKeyDown={(e) => e.key === 'Enter' && (setPage(0), load())}
             />
           </FormField>
-          <FormField label="Target User ID">
+          <FormField label="ID Target User">
             <Input
               placeholder="Discord ID"
               value={targetUserId}
@@ -136,10 +136,10 @@ export default function AuditLog() {
               onKeyDown={(e) => e.key === 'Enter' && (setPage(0), load())}
             />
           </FormField>
-          <FormField label="Search">
+          <FormField label="Cari">
             <Input
               leadingIcon={Search}
-              placeholder="reason, user/role ID"
+              placeholder="alasan, user/role ID"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (setPage(0), load())}
@@ -158,12 +158,12 @@ export default function AuditLog() {
         <DataTable>
           <THead>
             <TR>
-              <TH>When</TH>
-              <TH>Action</TH>
+              <TH>Waktu</TH>
+              <TH>Tindakan</TH>
               <TH>Moderator</TH>
               <TH>Target</TH>
               <TH>Role</TH>
-              <TH>Reason</TH>
+              <TH>Alasan</TH>
               <TH align="right"></TH>
             </TR>
           </THead>
@@ -197,7 +197,7 @@ export default function AuditLog() {
                         variant="secondary"
                         onClick={() => setExpandedId(isOpen ? null : row.id)}
                       >
-                        {isOpen ? 'Hide' : 'Details'}
+                        {isOpen ? 'Tutup' : 'Detail'}
                       </Button>
                     </TD>
                   </TR>
@@ -207,11 +207,11 @@ export default function AuditLog() {
                     <TR key={`${row.id}-detail`} className="bg-surface-2/50">
                       <TD colSpan={7} className="text-xs">
                         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                          <KeyValue k="Expiry time" v={row.expiryTime ? formatDateTime(row.expiryTime) : '-'} />
+                          <KeyValue k="Waktu kadaluarsa" v={row.expiryTime ? formatDateTime(row.expiryTime) : '-'} />
                           <KeyValue k="Template ID" v={row.templateId ?? '-'} />
                           {row.additionalData ? (
                             <div className="md:col-span-2">
-                              <div className="mb-1 text-muted-fg uppercase">additionalData</div>
+                              <div className="mb-1 text-muted-fg uppercase">data tambahan</div>
                               <pre className="overflow-x-auto rounded-md bg-surface px-3 py-2 text-[11px] text-fg-muted ring-1 ring-border">
                                 {JSON.stringify(row.additionalData, null, 2)}
                               </pre>
@@ -229,7 +229,7 @@ export default function AuditLog() {
         </DataTable>
         <div className="flex items-center justify-between border-t border-border bg-surface-2 px-5 py-2.5 text-sm text-muted-fg">
           <div>
-            {total} total · page {page + 1} / {totalPages}
+            {total} total · halaman {page + 1} / {totalPages}
           </div>
           <div className="flex gap-2">
             <Button
@@ -238,7 +238,7 @@ export default function AuditLog() {
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0 || loading}
             >
-              Previous
+              Sebelumnya
             </Button>
             <Button
               variant="secondary"
@@ -246,7 +246,7 @@ export default function AuditLog() {
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1 || loading}
             >
-              Next
+              Berikutnya
             </Button>
           </div>
         </div>

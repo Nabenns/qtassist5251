@@ -54,14 +54,14 @@ export default function Emails() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Email Bindings"
-        description={`${total} total registered emails.`}
+        title="Daftar Email"
+        description={`${total} total email terdaftar.`}
         actions={
           <div className="flex items-center gap-2">
             <FormField className="min-w-[260px]">
               <Input
                 leadingIcon={Search}
-                placeholder="Filter email atau user ID"
+                placeholder="Cari email atau user ID"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -72,7 +72,7 @@ export default function Emails() {
               loading={loading}
               leadingIcon={RefreshCw}
             >
-              Refresh
+              Muat ulang
             </Button>
           </div>
         }
@@ -91,8 +91,8 @@ export default function Emails() {
               <TH>Email</TH>
               <TH>User ID</TH>
               <TH>Server ID</TH>
-              <TH>Registered</TH>
-              <TH>Last Updated</TH>
+              <TH>Didaftarkan</TH>
+              <TH>Diperbarui</TH>
             </TR>
           </THead>
           {loading ? (

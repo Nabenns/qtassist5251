@@ -17,10 +17,10 @@ import { useToast } from '../components/ui/Toast.jsx';
 import { cn } from '../lib/cn.js';
 
 const TYPES = [
-  { value: 'shop', label: 'Shop', icon: ShoppingCart, description: 'Post embed produk dengan tombol Beli untuk tiap produk aktif.' },
-  { value: 'my-info', label: 'My Info', icon: UserCircle2, description: 'Post embed dengan 2 tombol: Cek Role + Riwayat Pembelian.' },
-  { value: 'role-claim', label: 'Role Claim', icon: Tags, description: 'Post embed dengan tombol klaim role (max 5 role).' },
-  { value: 'email-signup', label: 'Email Signup', icon: Mail, description: 'Post embed dengan tombol pendaftaran email.' }
+  { value: 'shop', label: 'Shop', icon: ShoppingCart, description: 'Posting embed produk dengan tombol Beli untuk tiap produk aktif.' },
+  { value: 'my-info', label: 'My Info', icon: UserCircle2, description: 'Posting embed dengan 2 tombol: Cek Role + Riwayat Pembelian.' },
+  { value: 'role-claim', label: 'Klaim Role', icon: Tags, description: 'Posting embed dengan tombol klaim role (maks. 5 role).' },
+  { value: 'email-signup', label: 'Pendaftaran Email', icon: Mail, description: 'Posting embed dengan tombol pendaftaran email.' }
 ];
 
 export default function DiscordPost() {
@@ -167,8 +167,8 @@ export default function DiscordPost() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Discord Posts"
-        description="Kirim setup message (shop, my-info, role-claim, email signup) ke channel Discord tanpa buka Discord."
+        title="Posting Discord"
+        description="Kirim pesan setup (shop, my-info, role-claim, email signup) ke channel Discord tanpa harus buka Discord."
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -213,13 +213,13 @@ export default function DiscordPost() {
         <CardHeader title={TypeMeta.label} description={TypeMeta.description} />
         <CardBody className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <FormField label="Guild">
+            <FormField label="Server">
               <Select
                 value={guildId}
                 onChange={(e) => setGuildId(e.target.value)}
                 disabled={guildsLoading}
               >
-                <option value="">Pilih guild...</option>
+                <option value="">Pilih server...</option>
                 {guilds.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
@@ -233,7 +233,7 @@ export default function DiscordPost() {
                 onChange={(e) => setChannelId(e.target.value)}
                 disabled={!guildId || channelsLoading}
               >
-                <option value="">{guildId ? 'Pilih channel...' : 'Pilih guild dulu'}</option>
+                <option value="">{guildId ? 'Pilih channel...' : 'Pilih server dulu'}</option>
                 {channels.map((c) => (
                   <option key={c.id} value={c.id}>
                     #{c.name}
@@ -307,11 +307,11 @@ function RoleClaimFields({
   return (
     <div className="space-y-3">
       <FormField
-        label={`Roles (${selected.length}/5 dipilih)`}
-        hint="Klik untuk pilih, max 5. Role yang gak assignable disabled."
+        label={`Role (${selected.length}/5 dipilih)`}
+        hint="Klik untuk pilih, maks. 5. Role yang tidak bisa di-assign akan disabled."
       >
         {rolesLoading ? (
-          <div className="text-sm text-muted-fg">Loading roles...</div>
+          <div className="text-sm text-muted-fg">Memuat role...</div>
         ) : roles.length === 0 ? (
           <div className="text-sm text-muted-fg">Tidak ada role yang ditemukan.</div>
         ) : (
@@ -337,8 +337,8 @@ function RoleClaimFields({
                   title={
                     disabled
                       ? r.managed
-                        ? 'Managed role / integration role tidak bisa di-assign'
-                        : 'Role di atas posisi role bot'
+                        ? 'Role yang dikelola integrasi tidak bisa di-assign bot'
+                        : 'Posisi role di atas posisi role bot'
                       : ''
                   }
                 >
@@ -356,19 +356,19 @@ function RoleClaimFields({
       </FormField>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <FormField label="Title (opsional)">
+        <FormField label="Judul (opsional)">
           <Input value={title} onChange={(e) => onTitle(e.target.value)} placeholder="🎯 Klaim Role" />
         </FormField>
-        <FormField label="Button style">
+        <FormField label="Style tombol">
           <Select value={buttonStyle} onChange={(e) => onButtonStyle(e.target.value)}>
-            <option value="primary">Primary (Blue)</option>
-            <option value="success">Success (Green)</option>
-            <option value="secondary">Secondary (Gray)</option>
-            <option value="danger">Danger (Red)</option>
+            <option value="primary">Primary (Biru)</option>
+            <option value="success">Success (Hijau)</option>
+            <option value="secondary">Secondary (Abu)</option>
+            <option value="danger">Danger (Merah)</option>
           </Select>
         </FormField>
       </div>
-      <FormField label="Description (opsional)" hint="Pakai \\n untuk newline.">
+      <FormField label="Deskripsi (opsional)" hint="Pakai \\n untuk pindah baris.">
         <Textarea
           value={description}
           onChange={(e) => onDescription(e.target.value)}
@@ -382,21 +382,21 @@ function RoleClaimFields({
 function EmailSignupFields({ title, onTitle, description, onDescription, buttonLabel, onButtonLabel }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <FormField label="Title (opsional)">
+      <FormField label="Judul (opsional)">
         <Input
           value={title}
           onChange={(e) => onTitle(e.target.value)}
           placeholder="📧 Daftarkan Email"
         />
       </FormField>
-      <FormField label="Button label (opsional)">
+      <FormField label="Label tombol (opsional)">
         <Input
           value={buttonLabel}
           onChange={(e) => onButtonLabel(e.target.value)}
           placeholder="Daftar Email"
         />
       </FormField>
-      <FormField label="Description (opsional)" className="md:col-span-2" hint="Pakai \\n untuk newline.">
+      <FormField label="Deskripsi (opsional)" className="md:col-span-2" hint="Pakai \\n untuk pindah baris.">
         <Textarea
           value={description}
           onChange={(e) => onDescription(e.target.value)}

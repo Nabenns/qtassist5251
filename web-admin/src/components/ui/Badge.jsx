@@ -27,12 +27,12 @@ export function Badge({ tone = 'neutral', className, children, dot = false }) {
 }
 
 const STATUS_TONES = {
-  pending: { tone: 'warning', label: 'Pending' },
-  pending_review: { tone: 'info', label: 'Pending Review' },
-  approved: { tone: 'success', label: 'Approved' },
-  rejected: { tone: 'danger', label: 'Rejected' },
-  cancelled: { tone: 'neutral', label: 'Cancelled' },
-  expired: { tone: 'neutral', label: 'Expired' }
+  pending: { tone: 'warning', label: 'Menunggu' },
+  pending_review: { tone: 'info', label: 'Menunggu Review' },
+  approved: { tone: 'success', label: 'Disetujui' },
+  rejected: { tone: 'danger', label: 'Ditolak' },
+  cancelled: { tone: 'neutral', label: 'Dibatalkan' },
+  expired: { tone: 'neutral', label: 'Kadaluarsa' }
 };
 
 export function StatusBadge({ status, className }) {

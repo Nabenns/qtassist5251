@@ -33,25 +33,25 @@ import { Button } from './ui/Button.jsx';
 
 const navSections = [
   {
-    label: 'Overview',
+    label: 'Ringkasan',
     items: [{ to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true }]
   },
   {
-    label: 'Operations',
+    label: 'Operasional',
     items: [
-      { to: '/transactions', label: 'Transactions', icon: Receipt },
-      { to: '/temproles', label: 'Temp Roles', icon: Clock },
-      { to: '/products', label: 'Products', icon: Package },
-      { to: '/emails', label: 'Email Bindings', icon: Mail }
+      { to: '/transactions', label: 'Transaksi', icon: Receipt },
+      { to: '/temproles', label: 'Role Sementara', icon: Clock },
+      { to: '/products', label: 'Produk', icon: Package },
+      { to: '/emails', label: 'Daftar Email', icon: Mail }
     ]
   },
   {
     label: 'Tools',
     items: [
-      { to: '/users', label: 'User Lookup', icon: Search },
+      { to: '/users', label: 'Cari User', icon: Search },
       { to: '/audit', label: 'Audit Log', icon: ListChecks },
-      { to: '/discord-post', label: 'Discord Posts', icon: Send },
-      { to: '/bot-status', label: 'Bot Status', icon: Activity }
+      { to: '/discord-post', label: 'Posting Discord', icon: Send },
+      { to: '/bot-status', label: 'Status Bot', icon: Activity }
     ]
   }
 ];
@@ -75,7 +75,7 @@ export default function Layout({ children }) {
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(evt.amount || 0);
-    const description = `${formatted} · ${evt.productName || 'Unknown product'}`;
+    const description = `${formatted} · ${evt.productName || 'Produk tidak diketahui'}`;
     toast.info('Bukti pembayaran baru', {
       description,
       duration: 9000,
@@ -91,9 +91,9 @@ export default function Layout({ children }) {
   useRealtimeEvent(['transaction.approved', 'transaction.rejected'], (evt) => {
     const isApprove = evt.type === 'transaction.approved';
     if (isApprove) {
-      toast.success('Transaksi approved', { description: evt.orderId, duration: 4000 });
+      toast.success('Transaksi disetujui', { description: evt.orderId, duration: 4000 });
     } else {
-      toast.warning('Transaksi rejected', { description: evt.orderId, duration: 4000 });
+      toast.warning('Transaksi ditolak', { description: evt.orderId, duration: 4000 });
     }
   });
 
@@ -141,7 +141,7 @@ function SidebarContent({ onNavigate }) {
         </div>
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-fg">QTAssist</div>
-          <div className="truncate text-xs text-muted-fg">Admin Dashboard</div>
+          <div className="truncate text-xs text-muted-fg">Dashboard Admin</div>
         </div>
       </div>
 
@@ -207,16 +207,16 @@ function Topbar({ onMenu, mobileOpen }) {
       return;
     }
     if (notifications.permission === 'denied') {
-      toast.warning('Notifications diblokir', {
+      toast.warning('Notifikasi diblokir', {
         description: 'Aktifkan via setting browser di icon gembok URL bar.'
       });
       return;
     }
     const newState = await notifications.toggle();
     if (newState) {
-      toast.success('Desktop notifications enabled');
+      toast.success('Notifikasi desktop diaktifkan');
     } else {
-      toast.info('Desktop notifications disabled');
+      toast.info('Notifikasi desktop dimatikan');
     }
   }
 
@@ -232,7 +232,7 @@ function Topbar({ onMenu, mobileOpen }) {
           type="button"
           onClick={onMenu}
           className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-2 hover:text-fg lg:hidden"
-          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          aria-label={mobileOpen ? 'Tutup menu' : 'Buka menu'}
         >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -241,7 +241,7 @@ function Topbar({ onMenu, mobileOpen }) {
 
         {/* Realtime connection indicator */}
         <Tooltip
-          content={connected ? 'Realtime connected' : 'Realtime disconnected — reconnecting...'}
+          content={connected ? 'Realtime terhubung' : 'Realtime terputus — mencoba reconnect...'}
           side="bottom"
         >
           <span
@@ -249,7 +249,7 @@ function Topbar({ onMenu, mobileOpen }) {
               'inline-flex h-9 w-9 items-center justify-center rounded-lg',
               connected ? 'text-success' : 'text-muted-fg'
             )}
-            aria-label={connected ? 'Realtime connected' : 'Realtime disconnected'}
+            aria-label={connected ? 'Realtime terhubung' : 'Realtime terputus'}
           >
             {connected ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
           </span>
@@ -258,12 +258,12 @@ function Topbar({ onMenu, mobileOpen }) {
         <Tooltip
           content={
             !notifications.supported
-              ? 'Notifications not supported'
+              ? 'Notifikasi tidak didukung browser'
               : notifications.permission === 'denied'
-              ? 'Notifications blocked by browser'
+              ? 'Notifikasi diblokir browser'
               : notifications.enabled
-              ? 'Disable desktop notifications'
-              : 'Enable desktop notifications'
+              ? 'Matikan notifikasi desktop'
+              : 'Aktifkan notifikasi desktop'
           }
           side="bottom"
         >
@@ -274,7 +274,7 @@ function Topbar({ onMenu, mobileOpen }) {
               'inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
               notifications.enabled ? 'text-primary' : 'text-fg-muted hover:text-fg'
             )}
-            aria-label="Toggle notifications"
+            aria-label="Toggle notifikasi"
           >
             <NotifIcon className="h-5 w-5" />
           </button>
@@ -284,8 +284,8 @@ function Topbar({ onMenu, mobileOpen }) {
           type="button"
           onClick={toggle}
           className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          aria-label={theme === 'dark' ? 'Pakai mode terang' : 'Pakai mode gelap'}
+          title={theme === 'dark' ? 'Mode terang' : 'Mode gelap'}
         >
           {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </button>
@@ -313,7 +313,7 @@ function Topbar({ onMenu, mobileOpen }) {
               )}
             >
               <div className="px-2 py-1.5 text-xs text-muted-fg">
-                Signed in as <span className="font-medium text-fg">{admin?.username}</span>
+                Login sebagai <span className="font-medium text-fg">{admin?.username}</span>
               </div>
               <DropdownMenu.Separator className="my-1 h-px bg-border" />
               <DropdownMenu.Item
@@ -324,7 +324,7 @@ function Topbar({ onMenu, mobileOpen }) {
                 className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-fg outline-none hover:bg-surface-2 focus:bg-surface-2"
               >
                 <LogOut className="h-4 w-4" />
-                Sign out
+                Keluar
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>

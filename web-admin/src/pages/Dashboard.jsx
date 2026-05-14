@@ -54,9 +54,9 @@ import { useRealtimeEvent } from '../lib/realtime.jsx';
 import { cn } from '../lib/cn.js';
 
 const RANGE_OPTIONS = [
-  { value: 7, label: 'Last 7 days' },
-  { value: 30, label: 'Last 30 days' },
-  { value: 90, label: 'Last 90 days' }
+  { value: 7, label: '7 hari terakhir' },
+  { value: 30, label: '30 hari terakhir' },
+  { value: 90, label: '90 hari terakhir' }
 ];
 
 function StatCard({ icon: Icon, label, value, hint, tone = 'neutral' }) {
@@ -143,10 +143,10 @@ export default function Dashboard() {
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        description="Overview aktivitas bot, pendapatan, dan transaksi terbaru."
+        description="Ringkasan aktivitas bot, pendapatan, dan transaksi terbaru."
         actions={
           <Button variant="secondary" onClick={load}>
-            Refresh
+            Muat ulang
           </Button>
         }
       />
@@ -165,30 +165,30 @@ export default function Dashboard() {
             <StatCard
               icon={TrendingUp}
               tone="primary"
-              label="Revenue (All Time)"
+              label="Pendapatan (Total)"
               value={formatIDR(revenue?.allTime)}
-              hint="Sum of approved transactions"
+              hint="Jumlah transaksi yang disetujui"
             />
             <StatCard
               icon={Calendar}
               tone="info"
-              label="Revenue (30 Days)"
+              label="Pendapatan (30 Hari)"
               value={formatIDR(revenue?.last30Days)}
-              hint="Approved in last 30 days"
+              hint="Disetujui dalam 30 hari terakhir"
             />
             <StatCard
               icon={HourglassIcon}
               tone="warning"
-              label="Pending Review"
+              label="Menunggu Review"
               value={pendingTotal}
-              hint={`${totals?.pending_review ?? 0} waiting admin review`}
+              hint={`${totals?.pending_review ?? 0} menunggu review admin`}
             />
             <StatCard
               icon={Sparkles}
               tone="success"
-              label="Active Temp Roles"
+              label="Role Sementara Aktif"
               value={totals?.activeTempRoles ?? 0}
-              hint={`${totals?.activeProducts ?? 0} active products`}
+              hint={`${totals?.activeProducts ?? 0} produk aktif`}
             />
           </>
         )}
@@ -197,8 +197,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader
-            title="Revenue & approvals"
-            description="Pendapatan harian dari transaksi approved"
+            title="Pendapatan & Persetujuan"
+            description="Pendapatan harian dari transaksi yang disetujui"
             action={
               <FormField className="min-w-[160px]">
                 <Select value={days} onChange={(e) => setDays(Number(e.target.value))}>
@@ -217,7 +217,7 @@ export default function Dashboard() {
         </Card>
 
         <Card>
-          <CardHeader title="Status distribution" description="Snapshot status transaksi" />
+          <CardHeader title="Distribusi Status" description="Snapshot status semua transaksi" />
           <CardBody>
             <StatusPie totals={totals} loading={loading} />
           </CardBody>
@@ -226,14 +226,14 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
-          <CardHeader title="Activity by status" description="Transaksi harian by status" />
+          <CardHeader title="Aktivitas per Status" description="Transaksi harian dipisah per status" />
           <CardBody>
             <ActivityChart series={series} loading={seriesLoading} />
           </CardBody>
         </Card>
 
         <Card>
-          <CardHeader title="Top products" description="Revenue tertinggi di window ini" />
+          <CardHeader title="Produk Terlaris" description="Pendapatan tertinggi di periode ini" />
           <CardBody className="p-0">
             <TopProducts series={series} loading={seriesLoading} />
           </CardBody>
@@ -246,22 +246,22 @@ export default function Dashboard() {
         ) : (
           <>
             <StatCard icon={Receipt} label="Total" value={totals?.transactions ?? 0} />
-            <StatCard icon={CheckCircle2} tone="success" label="Approved" value={totals?.approved ?? 0} />
-            <StatCard icon={XCircle} tone="danger" label="Rejected" value={totals?.rejected ?? 0} />
-            <StatCard icon={Clock} tone="warning" label="Pending" value={totals?.pending ?? 0} />
-            <StatCard icon={Ban} label="Cancelled" value={totals?.cancelled ?? 0} />
-            <StatCard icon={AlertCircle} label="Expired" value={totals?.expired ?? 0} />
+            <StatCard icon={CheckCircle2} tone="success" label="Disetujui" value={totals?.approved ?? 0} />
+            <StatCard icon={XCircle} tone="danger" label="Ditolak" value={totals?.rejected ?? 0} />
+            <StatCard icon={Clock} tone="warning" label="Menunggu" value={totals?.pending ?? 0} />
+            <StatCard icon={Ban} label="Dibatalkan" value={totals?.cancelled ?? 0} />
+            <StatCard icon={AlertCircle} label="Kadaluarsa" value={totals?.expired ?? 0} />
           </>
         )}
       </div>
 
       <Card>
         <CardHeader
-          title="Recent Transactions"
-          description="Latest 8 transactions across the bot."
+          title="Transaksi Terbaru"
+          description="8 transaksi terbaru dari seluruh bot."
           action={
             <Link to="/transactions" className="text-sm font-medium text-primary hover:underline">
-              View all
+              Lihat semua
             </Link>
           }
         />
@@ -270,10 +270,10 @@ export default function Dashboard() {
             <TR>
               <TH>Order ID</TH>
               <TH>User</TH>
-              <TH>Product</TH>
-              <TH>Amount</TH>
+              <TH>Produk</TH>
+              <TH>Jumlah</TH>
               <TH>Status</TH>
-              <TH>Created</TH>
+              <TH>Dibuat</TH>
             </TR>
           </THead>
           {loading ? (
@@ -297,7 +297,7 @@ export default function Dashboard() {
             <TableEmpty
               columns={6}
               icon={Receipt}
-              title="No transactions yet"
+              title="Belum ada transaksi"
               description="Pembelian baru akan muncul di sini begitu user check out."
             />
           )}
@@ -336,7 +336,7 @@ function RevenueChart({ series, loading }) {
             labelStyle={tooltipLabelStyle(colors)}
             itemStyle={tooltipItemStyle(colors)}
             formatter={(value, name) => {
-              if (name === 'revenue') return [formatIDR(value), 'Revenue'];
+              if (name === 'revenue') return [formatIDR(value), 'Pendapatan'];
               return [value, name];
             }}
           />
@@ -372,12 +372,12 @@ function ActivityChart({ series, loading }) {
             itemStyle={tooltipItemStyle(colors)}
           />
           <Legend wrapperStyle={{ color: colors.text, fontSize: 11 }} />
-          <Bar stackId="a" dataKey="approved" fill={colors.success} name="Approved" />
+          <Bar stackId="a" dataKey="approved" fill={colors.success} name="Disetujui" />
           <Bar stackId="a" dataKey="pending_review" fill={colors.info} name="Review" />
-          <Bar stackId="a" dataKey="pending" fill={colors.warning} name="Pending" />
-          <Bar stackId="a" dataKey="rejected" fill={colors.danger} name="Rejected" />
-          <Bar stackId="a" dataKey="cancelled" fill={colors.neutral} name="Cancelled" />
-          <Bar stackId="a" dataKey="expired" fill={colors.muted} name="Expired" />
+          <Bar stackId="a" dataKey="pending" fill={colors.warning} name="Menunggu" />
+          <Bar stackId="a" dataKey="rejected" fill={colors.danger} name="Ditolak" />
+          <Bar stackId="a" dataKey="cancelled" fill={colors.neutral} name="Dibatalkan" />
+          <Bar stackId="a" dataKey="expired" fill={colors.muted} name="Kadaluarsa" />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -387,19 +387,19 @@ function ActivityChart({ series, loading }) {
 function StatusPie({ totals, loading }) {
   const colors = useChartTheme();
   if (loading) return <Skeleton className="h-64 w-full" />;
-  if (!totals) return <div className="py-10 text-center text-sm text-muted-fg">No data</div>;
+  if (!totals) return <div className="py-10 text-center text-sm text-muted-fg">Belum ada data</div>;
 
   const data = [
-    { name: 'Approved', value: totals.approved || 0, color: colors.success },
-    { name: 'Pending Review', value: totals.pending_review || 0, color: colors.info },
-    { name: 'Pending', value: totals.pending || 0, color: colors.warning },
-    { name: 'Rejected', value: totals.rejected || 0, color: colors.danger },
-    { name: 'Cancelled', value: totals.cancelled || 0, color: colors.neutral },
-    { name: 'Expired', value: totals.expired || 0, color: colors.muted }
+    { name: 'Disetujui', value: totals.approved || 0, color: colors.success },
+    { name: 'Menunggu Review', value: totals.pending_review || 0, color: colors.info },
+    { name: 'Menunggu', value: totals.pending || 0, color: colors.warning },
+    { name: 'Ditolak', value: totals.rejected || 0, color: colors.danger },
+    { name: 'Dibatalkan', value: totals.cancelled || 0, color: colors.neutral },
+    { name: 'Kadaluarsa', value: totals.expired || 0, color: colors.muted }
   ].filter((d) => d.value > 0);
 
   if (data.length === 0) {
-    return <div className="py-10 text-center text-sm text-muted-fg">No data</div>;
+    return <div className="py-10 text-center text-sm text-muted-fg">Belum ada data</div>;
   }
 
   return (
@@ -426,7 +426,7 @@ function StatusPie({ totals, loading }) {
 function TopProducts({ series, loading }) {
   if (loading) return <Skeleton className="m-5 h-48" />;
   if (!series || !series.topProducts?.length) {
-    return <div className="py-10 text-center text-sm text-muted-fg">Belum ada produk approved.</div>;
+    return <div className="py-10 text-center text-sm text-muted-fg">Belum ada produk yang disetujui.</div>;
   }
   const max = series.topProducts[0]?.revenue || 1;
   return (
@@ -435,7 +435,7 @@ function TopProducts({ series, loading }) {
         <li key={p.productId} className="flex items-center gap-3 px-5 py-3">
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium text-fg">{p.productName}</div>
-            <div className="text-xs text-muted-fg">{p.count} approved</div>
+            <div className="text-xs text-muted-fg">{p.count} disetujui</div>
             <div className="mt-1 h-1.5 w-full rounded-full bg-surface-3">
               <div
                 className="h-1.5 rounded-full bg-primary"

@@ -70,11 +70,11 @@ export default function Products() {
     setBusy(true);
     try {
       await api.delete(`/api/products/${confirmDelete.id}`);
-      toast.success('Product deleted');
+      toast.success('Produk dihapus');
       setConfirmDelete(null);
       load();
     } catch (err) {
-      toast.error('Delete failed', { description: err instanceof ApiError ? err.message : '' });
+      toast.error('Gagal menghapus', { description: err instanceof ApiError ? err.message : '' });
     } finally {
       setBusy(false);
     }
@@ -83,7 +83,7 @@ export default function Products() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Products"
+        title="Produk"
         description="Buat, edit, dan hapus produk role yang dijual via shop."
         actions={
           <div className="flex gap-2">
@@ -93,10 +93,10 @@ export default function Products() {
               loading={loading}
               leadingIcon={RefreshCw}
             >
-              Refresh
+              Muat ulang
             </Button>
             <Button leadingIcon={Plus} onClick={() => setCreating(true)}>
-              New product
+              Produk baru
             </Button>
           </div>
         }
@@ -112,12 +112,12 @@ export default function Products() {
         <DataTable>
           <THead>
             <TR>
-              <TH>Name</TH>
-              <TH>Price</TH>
-              <TH>Duration</TH>
+              <TH>Nama</TH>
+              <TH>Harga</TH>
+              <TH>Durasi</TH>
               <TH>Role ID</TH>
-              <TH>Active</TH>
-              <TH>Created</TH>
+              <TH>Aktif</TH>
+              <TH>Dibuat</TH>
               <TH align="right"></TH>
             </TR>
           </THead>
@@ -128,8 +128,8 @@ export default function Products() {
               columns={7}
               icon={Package}
               title="Belum ada produk"
-              description="Klik 'New product' untuk bikin produk pertama."
-              action={<Button leadingIcon={Plus} onClick={() => setCreating(true)}>New product</Button>}
+              description="Klik 'Produk baru' untuk membuat produk pertama."
+              action={<Button leadingIcon={Plus} onClick={() => setCreating(true)}>Produk baru</Button>}
             />
           ) : (
             <TBody>
@@ -148,9 +148,9 @@ export default function Products() {
                   <TD className="font-mono text-xs">{p.roleId}</TD>
                   <TD>
                     {p.isActive ? (
-                      <Badge tone="success" dot>Active</Badge>
+                      <Badge tone="success" dot>Aktif</Badge>
                     ) : (
-                      <Badge tone="neutral">Inactive</Badge>
+                      <Badge tone="neutral">Nonaktif</Badge>
                     )}
                   </TD>
                   <TD className="text-muted-fg">{formatDateTime(p.createdAt)}</TD>
@@ -170,7 +170,7 @@ export default function Products() {
                         leadingIcon={Trash2}
                         onClick={() => setConfirmDelete(p)}
                       >
-                        Delete
+                        Hapus
                       </Button>
                     </div>
                   </TD>
@@ -186,7 +186,7 @@ export default function Products() {
         onClose={() => setEditing(null)}
         onSaved={() => {
           setEditing(null);
-          toast.success('Product updated');
+          toast.success('Produk diperbarui');
           load();
         }}
       />
@@ -196,32 +196,32 @@ export default function Products() {
         onClose={() => setCreating(false)}
         onCreated={() => {
           setCreating(false);
-          toast.success('Product created');
+          toast.success('Produk dibuat');
           load();
         }}
       />
 
       <Modal open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
         <ModalHeader
-          title="Delete product?"
-          description="Produk dihapus dari database; transaksi yang sudah ada tidak ke-touch."
+          title="Hapus produk?"
+          description="Produk dihapus dari database. Transaksi yang sudah ada tidak terpengaruh."
           onClose={() => setConfirmDelete(null)}
         />
         <ModalBody>
           <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
             <div className="font-medium">{confirmDelete?.name}</div>
             <div className="mt-1 text-xs text-muted-fg">
-              Price: {confirmDelete ? formatIDR(confirmDelete.price) : ''} · Duration:{' '}
+              Harga: {confirmDelete ? formatIDR(confirmDelete.price) : ''} · Durasi:{' '}
               {confirmDelete ? formatDuration(confirmDelete.duration) : ''}
             </div>
           </div>
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setConfirmDelete(null)} disabled={busy}>
-            Cancel
+            Batal
           </Button>
           <Button variant="danger" onClick={handleConfirmDelete} loading={busy} leadingIcon={Trash2}>
-            Yes, delete
+            Ya, hapus
           </Button>
         </ModalFooter>
       </Modal>
@@ -268,15 +268,15 @@ function EditModal({ product, onClose, onSaved }) {
 
   return (
     <Modal open={!!product} onOpenChange={(open) => !open && onClose()}>
-      <ModalHeader title="Edit Product" onClose={onClose} />
+      <ModalHeader title="Edit Produk" onClose={onClose} />
       <ModalBody>
-        <FormField label="Name" htmlFor="p-name">
+        <FormField label="Nama" htmlFor="p-name">
           <Input id="p-name" value={name} onChange={(e) => setName(e.target.value)} />
         </FormField>
-        <FormField label="Description" htmlFor="p-desc">
+        <FormField label="Deskripsi" htmlFor="p-desc">
           <Textarea id="p-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
         </FormField>
-        <FormField label="Price (IDR)" htmlFor="p-price">
+        <FormField label="Harga (IDR)" htmlFor="p-price">
           <Input
             id="p-price"
             type="number"
@@ -292,15 +292,15 @@ function EditModal({ product, onClose, onSaved }) {
             onChange={(e) => setIsActive(e.target.checked)}
             className="rounded border-border"
           />
-          Active (shown in shop)
+          Aktif (tampil di shop)
         </label>
       </ModalBody>
       <ModalFooter>
         <Button variant="secondary" onClick={onClose} disabled={busy}>
-          Cancel
+          Batal
         </Button>
         <Button onClick={handleSave} loading={busy}>
-          Save changes
+          Simpan perubahan
         </Button>
       </ModalFooter>
     </Modal>
@@ -377,11 +377,11 @@ function CreateModal({ open, onClose, onCreated }) {
         isActive
       });
       if (res.warning) {
-        toast.warning('Product created with warning', { description: res.warning });
+        toast.warning('Produk dibuat dengan peringatan', { description: res.warning });
       }
       onCreated();
     } catch (err) {
-      toast.error('Create failed', { description: err instanceof ApiError ? err.message : 'Coba lagi.' });
+      toast.error('Gagal membuat', { description: err instanceof ApiError ? err.message : 'Coba lagi.' });
     } finally {
       setBusy(false);
     }
@@ -390,15 +390,15 @@ function CreateModal({ open, onClose, onCreated }) {
   return (
     <Modal open={open} onOpenChange={(o) => !o && onClose()}>
       <ModalHeader
-        title="New Product"
-        description="Produk baru muncul di shop pas /shop-setup atau Discord Posts."
+        title="Produk Baru"
+        description="Produk baru akan muncul di shop saat /shop-setup atau lewat Posting Discord."
         onClose={onClose}
       />
       <ModalBody>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <FormField label="Guild">
+          <FormField label="Server">
             <Select value={guildId} onChange={(e) => setGuildId(e.target.value)}>
-              <option value="">Pilih guild...</option>
+              <option value="">Pilih server...</option>
               {guilds.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
@@ -412,20 +412,20 @@ function CreateModal({ open, onClose, onCreated }) {
               onChange={(e) => setRoleId(e.target.value)}
               disabled={!guildId || rolesLoading}
             >
-              <option value="">{guildId ? 'Pilih role...' : 'Pilih guild dulu'}</option>
+              <option value="">{guildId ? 'Pilih role...' : 'Pilih server dulu'}</option>
               {roles.map((r) => (
                 <option key={r.id} value={r.id} disabled={!r.assignable}>
                   {r.name}
-                  {!r.assignable ? ' (not assignable)' : ''}
+                  {!r.assignable ? ' (tidak bisa di-assign)' : ''}
                 </option>
               ))}
             </Select>
           </FormField>
         </div>
-        <FormField label="Name">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="VIP 30 Days" />
+        <FormField label="Nama">
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="VIP 30 Hari" />
         </FormField>
-        <FormField label="Description">
+        <FormField label="Deskripsi">
           <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -433,7 +433,7 @@ function CreateModal({ open, onClose, onCreated }) {
           />
         </FormField>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <FormField label="Price (IDR)">
+          <FormField label="Harga (IDR)">
             <Input
               type="number"
               min="0"
@@ -442,7 +442,7 @@ function CreateModal({ open, onClose, onCreated }) {
               placeholder="50000"
             />
           </FormField>
-          <FormField label="Duration" hint="Format: 30d, 1w, 12h, 1d12h, dll.">
+          <FormField label="Durasi" hint="Format: 30d, 1w, 12h, 1d12h, dll.">
             <Input value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="30d" />
           </FormField>
         </div>
@@ -453,15 +453,15 @@ function CreateModal({ open, onClose, onCreated }) {
             onChange={(e) => setIsActive(e.target.checked)}
             className="rounded border-border"
           />
-          Active (shown in shop)
+          Aktif (tampil di shop)
         </label>
       </ModalBody>
       <ModalFooter>
         <Button variant="secondary" onClick={onClose} disabled={busy}>
-          Cancel
+          Batal
         </Button>
         <Button onClick={handleSubmit} loading={busy} leadingIcon={Plus}>
-          Create product
+          Buat produk
         </Button>
       </ModalFooter>
     </Modal>

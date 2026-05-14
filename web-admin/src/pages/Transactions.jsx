@@ -35,13 +35,13 @@ import { useToast } from '../components/ui/Toast.jsx';
 import { useRealtimeEvent } from '../lib/realtime.jsx';
 
 const STATUS_FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'pending_review', label: 'Pending Review' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'expired', label: 'Expired' }
+  { value: 'all', label: 'Semua' },
+  { value: 'pending_review', label: 'Menunggu Review' },
+  { value: 'pending', label: 'Menunggu' },
+  { value: 'approved', label: 'Disetujui' },
+  { value: 'rejected', label: 'Ditolak' },
+  { value: 'cancelled', label: 'Dibatalkan' },
+  { value: 'expired', label: 'Kadaluarsa' }
 ];
 
 const PAGE_SIZE = 25;
@@ -120,7 +120,7 @@ export default function Transactions() {
 
   async function handleBulkApprove() {
     if (bulkSelected.size === 0) return;
-    if (!confirm(`Approve ${bulkSelected.size} transaksi?`)) return;
+    if (!confirm(`Setujui ${bulkSelected.size} transaksi sekaligus?`)) return;
     setBulkBusy(true);
     let success = 0;
     let failed = 0;
@@ -134,11 +134,11 @@ export default function Transactions() {
     }
     setBulkBusy(false);
     if (success > 0) {
-      toast.success(`${success} approved`, {
-        description: failed > 0 ? `${failed} failed` : undefined
+      toast.success(`${success} disetujui`, {
+        description: failed > 0 ? `${failed} gagal` : undefined
       });
     } else if (failed > 0) {
-      toast.error(`${failed} failed`);
+      toast.error(`${failed} gagal`);
     }
     load();
   }
@@ -146,8 +146,8 @@ export default function Transactions() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Transactions"
-        description="Review, approve, atau reject pembayaran manual."
+        title="Transaksi"
+        description="Review, setujui, atau tolak pembayaran manual."
         actions={
           <Button
             variant="secondary"
@@ -155,7 +155,7 @@ export default function Transactions() {
             loading={loading}
             leadingIcon={RefreshCw}
           >
-            Refresh
+            Muat ulang
           </Button>
         }
       />
@@ -178,7 +178,7 @@ export default function Transactions() {
             </Select>
           </FormField>
 
-          <FormField label="Search" className="flex-1 min-w-[260px]">
+          <FormField label="Cari" className="flex-1 min-w-[260px]">
             <Input
               leadingIcon={Search}
               placeholder="order ID atau user ID"
@@ -200,7 +200,7 @@ export default function Transactions() {
               load();
             }}
           >
-            Apply
+            Terapkan
           </Button>
 
           {canBulk && bulkSelected.size > 0 ? (
@@ -215,7 +215,7 @@ export default function Transactions() {
                 loading={bulkBusy}
                 leadingIcon={CheckCircle2}
               >
-                Bulk approve
+                Setujui sekaligus
               </Button>
             </div>
           ) : null}
@@ -236,7 +236,7 @@ export default function Transactions() {
                 <TH className="w-8">
                   <input
                     type="checkbox"
-                    aria-label="Select all"
+                    aria-label="Pilih semua"
                     onChange={toggleBulkAll}
                     checked={
                       items.length > 0 &&
@@ -250,11 +250,11 @@ export default function Transactions() {
               ) : null}
               <TH>Order ID</TH>
               <TH>User</TH>
-              <TH>Product</TH>
-              <TH>Amount</TH>
+              <TH>Produk</TH>
+              <TH>Jumlah</TH>
               <TH>Status</TH>
-              <TH>Created</TH>
-              <TH>Reviewed</TH>
+              <TH>Dibuat</TH>
+              <TH>Direview</TH>
               <TH align="right"></TH>
             </TR>
           </THead>
@@ -278,7 +278,7 @@ export default function Transactions() {
                         {eligibleForBulk ? (
                           <input
                             type="checkbox"
-                            aria-label={`Select ${tx.orderId}`}
+                            aria-label={`Pilih ${tx.orderId}`}
                             checked={bulkSelected.has(tx.orderId)}
                             onChange={() => toggleBulk(tx.orderId)}
                             className="rounded border-border"
@@ -313,7 +313,7 @@ export default function Transactions() {
         </DataTable>
         <div className="flex items-center justify-between border-t border-border bg-surface-2 px-5 py-2.5 text-sm text-muted-fg">
           <div>
-            {total} total · page {page + 1} / {totalPages}
+            {total} total · halaman {page + 1} / {totalPages}
           </div>
           <div className="flex gap-2">
             <Button
@@ -322,7 +322,7 @@ export default function Transactions() {
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0 || loading}
             >
-              Previous
+              Sebelumnya
             </Button>
             <Button
               variant="secondary"
@@ -330,7 +330,7 @@ export default function Transactions() {
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1 || loading}
             >
-              Next
+              Berikutnya
             </Button>
           </div>
         </div>
@@ -396,7 +396,6 @@ function ReviewModal({ tx, onClose, onChanged }) {
       setBusy(false);
     }
   }
-
   if (!tx) {
     return <Modal open={false} onOpenChange={() => {}}>{null}</Modal>;
   }
@@ -406,23 +405,23 @@ function ReviewModal({ tx, onClose, onChanged }) {
   return (
     <Modal open={!!tx} onOpenChange={(open) => !open && onClose()}>
       <ModalHeader
-        title="Transaction Review"
+        title="Review Transaksi"
         description={tx.orderId}
         onClose={onClose}
       />
       <ModalBody>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <Field label="User ID" value={<span className="font-mono text-xs">{tx.userId}</span>} />
-          <Field label="Product" value={tx.productName || '-'} />
-          <Field label="Amount" value={formatIDR(tx.amount)} />
+          <Field label="Produk" value={tx.productName || '-'} />
+          <Field label="Jumlah" value={formatIDR(tx.amount)} />
           <Field label="Status" value={<StatusBadge status={tx.status} />} />
-          <Field label="Created" value={formatDateTime(tx.createdAt)} />
-          <Field label="Reviewed" value={tx.reviewedAt ? formatDateTime(tx.reviewedAt) : '-'} />
+          <Field label="Dibuat" value={formatDateTime(tx.createdAt)} />
+          <Field label="Direview" value={tx.reviewedAt ? formatDateTime(tx.reviewedAt) : '-'} />
         </div>
 
         {tx.rejectionReason ? (
           <div className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger ring-1 ring-inset ring-danger/30">
-            <div className="font-medium">Rejection reason</div>
+            <div className="font-medium">Alasan penolakan</div>
             <div className="mt-0.5">{tx.rejectionReason}</div>
           </div>
         ) : null}
@@ -438,16 +437,16 @@ function ReviewModal({ tx, onClose, onChanged }) {
                 rel="noopener noreferrer"
                 className="text-primary hover:underline"
               >
-                Buka original
+                Buka asli
               </a>
             </div>
           ) : (
             <div>
-              <div className="mb-1 text-xs uppercase text-muted-fg">Payment Proof</div>
+              <div className="mb-1 text-xs uppercase text-muted-fg">Bukti Pembayaran</div>
               <a href={tx.paymentProofUrl} target="_blank" rel="noopener noreferrer" className="block">
                 <img
                   src={tx.paymentProofUrl}
-                  alt="payment proof"
+                  alt="bukti pembayaran"
                   loading="lazy"
                   onError={() => setImgError(true)}
                   className="max-h-96 w-full rounded-lg border border-border object-contain bg-surface-2"
@@ -460,7 +459,7 @@ function ReviewModal({ tx, onClose, onChanged }) {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Buka original
+                  Buka asli
                 </a>
               </div>
             </div>
@@ -488,7 +487,7 @@ function ReviewModal({ tx, onClose, onChanged }) {
           {showReject ? (
             <>
               <Button variant="secondary" onClick={() => setShowReject(false)} disabled={busy}>
-                Cancel
+                Batal
               </Button>
               <Button
                 variant="danger"
@@ -496,7 +495,7 @@ function ReviewModal({ tx, onClose, onChanged }) {
                 loading={busy}
                 leadingIcon={XCircle}
               >
-                Confirm Reject
+                Konfirmasi Tolak
               </Button>
             </>
           ) : (
@@ -507,7 +506,7 @@ function ReviewModal({ tx, onClose, onChanged }) {
                 disabled={busy}
                 leadingIcon={XCircle}
               >
-                Reject
+                Tolak
               </Button>
               <Button
                 variant="success"
@@ -515,14 +514,14 @@ function ReviewModal({ tx, onClose, onChanged }) {
                 loading={busy}
                 leadingIcon={CheckCircle2}
               >
-                Approve
+                Setujui
               </Button>
             </>
           )}
         </ModalFooter>
       ) : (
         <ModalFooter>
-          <Button variant="secondary" onClick={onClose}>Close</Button>
+          <Button variant="secondary" onClick={onClose}>Tutup</Button>
         </ModalFooter>
       )}
     </Modal>
