@@ -3,11 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1d52d4" />
     <meta name="robots" content="noindex,nofollow" />
     <title>QTAssist Admin</title>
+    <!-- Inline theme bootstrap to avoid FOUC: apply the .dark class before
+         React hydrates so initial paint matches the chosen theme. -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('qtassist-theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = stored === 'light' || stored === 'dark' ? stored : (prefersDark ? 'dark' : 'light');
+          if (theme === 'dark') document.documentElement.classList.add('dark');
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (!meta) {
+            meta = document.createElement('meta');
+            meta.setAttribute('name', 'theme-color');
+            document.head.appendChild(meta);
+          }
+          meta.setAttribute('content', theme === 'dark' ? '#0b0d12' : '#f8fafc');
+        } catch (_) {}
+      })();
+    </script>
   </head>
-  <body class="bg-slate-100">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

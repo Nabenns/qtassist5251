@@ -1,5 +1,29 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Pencil, RefreshCw, Package } from 'lucide-react';
 import { api, formatIDR, formatDateTime } from '../api.js';
+import { ApiError } from '../api.js';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
+import { Card } from '../components/ui/Card.jsx';
+import { Badge } from '../components/ui/Badge.jsx';
+import { Button } from '../components/ui/Button.jsx';
+import { Input, Textarea, FormField } from '../components/ui/Input.jsx';
+import {
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter
+} from '../components/ui/Modal.jsx';
+import {
+  DataTable,
+  THead,
+  TBody,
+  TR,
+  TH,
+  TD,
+  TableLoading,
+  TableEmpty
+} from '../components/ui/Table.jsx';
+import { useToast } from '../components/ui/Toast.jsx';
 
 function formatDuration(ms) {
   const n = Number(ms);
@@ -16,6 +40,7 @@ function formatDuration(ms) {
 }
 
 export default function Products() {
+  const { toast } = useToast();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,94 +65,121 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Products</h1>
-          <p className="text-sm text-slate-500">Edit product details. Create or delete products via the bot's slash commands.</p>
-        </div>
-        <button onClick={load} className="btn-secondary" disabled={loading}>
-          {loading ? 'Refreshing...' : 'Refresh'}
-        </button>
-      </div>
+      <PageHeader
+        title="Products"
+        description="Edit product details. Create atau delete via bot slash commands."
+        actions={
+          <Button
+            variant="secondary"
+            onClick={load}
+            loading={loading}
+            leadingIcon={RefreshCw}
+          >
+            Refresh
+          </Button>
+        }
+      />
 
       {error ? (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 ring-1 ring-red-200">{error}</div>
-      ) : null}
-
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50">
-              <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                <th className="px-5 py-2.5">Name</th>
-                <th className="px-5 py-2.5">Price</th>
-                <th className="px-5 py-2.5">Duration</th>
-                <th className="px-5 py-2.5">Role ID</th>
-                <th className="px-5 py-2.5">Active</th>
-                <th className="px-5 py-2.5">Created</th>
-                <th className="px-5 py-2.5"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {!loading && items.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-5 py-8 text-center text-slate-500">No products yet.</td>
-                </tr>
-              ) : (
-                items.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-2.5">
-                      <div className="font-medium text-slate-900">{p.name}</div>
-                      {p.description ? (
-                        <div className="text-xs text-slate-500 line-clamp-1">{p.description}</div>
-                      ) : null}
-                    </td>
-                    <td className="px-5 py-2.5">{formatIDR(p.price)}</td>
-                    <td className="px-5 py-2.5">{formatDuration(p.duration)}</td>
-                    <td className="px-5 py-2.5 font-mono text-xs">{p.roleId}</td>
-                    <td className="px-5 py-2.5">
-                      {p.isActive ? (
-                        <span className="badge badge-approved">Active</span>
-                      ) : (
-                        <span className="badge badge-cancelled">Inactive</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-2.5 text-slate-500">{formatDateTime(p.createdAt)}</td>
-                    <td className="px-5 py-2.5 text-right">
-                      <button onClick={() => setEditing(p)} className="btn-secondary">Edit</button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger ring-1 ring-inset ring-danger/30">
+          {error}
         </div>
-      </div>
-
-      {editing ? (
-        <EditModal
-          product={editing}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
-            setEditing(null);
-            load();
-          }}
-        />
       ) : null}
+
+      <Card>
+        <DataTable>
+          <THead>
+            <TR>
+              <TH>Name</TH>
+              <TH>Price</TH>
+              <TH>Duration</TH>
+              <TH>Role ID</TH>
+              <TH>Active</TH>
+              <TH>Created</TH>
+              <TH align="right"></TH>
+            </TR>
+          </THead>
+          {loading ? (
+            <TableLoading columns={7} rows={5} />
+          ) : items.length === 0 ? (
+            <TableEmpty
+              columns={7}
+              icon={Package}
+              title="Belum ada produk"
+              description="Buat produk lewat /product-create di Discord."
+            />
+          ) : (
+            <TBody>
+              {items.map((p) => (
+                <TR key={p.id}>
+                  <TD>
+                    <div className="font-medium text-fg">{p.name}</div>
+                    {p.description ? (
+                      <div className="text-xs text-muted-fg line-clamp-1 max-w-md">
+                        {p.description}
+                      </div>
+                    ) : null}
+                  </TD>
+                  <TD>{formatIDR(p.price)}</TD>
+                  <TD>{formatDuration(p.duration)}</TD>
+                  <TD className="font-mono text-xs">{p.roleId}</TD>
+                  <TD>
+                    {p.isActive ? (
+                      <Badge tone="success" dot>Active</Badge>
+                    ) : (
+                      <Badge tone="neutral">Inactive</Badge>
+                    )}
+                  </TD>
+                  <TD className="text-muted-fg">{formatDateTime(p.createdAt)}</TD>
+                  <TD align="right">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      leadingIcon={Pencil}
+                      onClick={() => setEditing(p)}
+                    >
+                      Edit
+                    </Button>
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+          )}
+        </DataTable>
+      </Card>
+
+      <EditModal
+        product={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null);
+          toast.success('Product updated');
+          load();
+        }}
+      />
     </div>
   );
 }
 
 function EditModal({ product, onClose, onSaved }) {
-  const [name, setName] = useState(product.name || '');
-  const [description, setDescription] = useState(product.description || '');
-  const [price, setPrice] = useState(product.price);
-  const [isActive, setIsActive] = useState(Boolean(product.isActive));
+  const { toast } = useToast();
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState(0);
+  const [isActive, setIsActive] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (product) {
+      setName(product.name || '');
+      setDescription(product.description || '');
+      setPrice(product.price ?? 0);
+      setIsActive(Boolean(product.isActive));
+    }
+  }, [product]);
 
   async function handleSave() {
-    setError(null);
+    if (!product) return;
     setBusy(true);
     try {
       await api.patch(`/api/products/${product.id}`, {
@@ -138,62 +190,51 @@ function EditModal({ product, onClose, onSaved }) {
       });
       onSaved();
     } catch (err) {
-      setError(err.message || 'Save failed');
+      toast.error('Save failed', {
+        description: err instanceof ApiError ? err.message : 'Coba lagi.'
+      });
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
-      <div className="card w-full max-w-md">
-        <div className="flex items-start justify-between border-b border-slate-200 px-5 py-3">
-          <h2 className="font-semibold text-slate-900">Edit Product</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
-        </div>
-        <div className="space-y-3 px-5 py-4">
-          <div>
-            <label className="label">Name</label>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div>
-            <label className="label">Description</label>
-            <textarea
-              className="input min-h-[80px]"
-              value={description || ''}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="label">Price (IDR)</label>
-            <input
-              className="input"
-              type="number"
-              min="0"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-            />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="rounded border-slate-300"
-            />
-            Active (shown in shop)
-          </label>
-          {error ? (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 ring-1 ring-red-200">{error}</div>
-          ) : null}
-        </div>
-        <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
-          <button onClick={onClose} className="btn-secondary" disabled={busy}>Cancel</button>
-          <button onClick={handleSave} className="btn-primary" disabled={busy}>
-            {busy ? 'Saving...' : 'Save changes'}
-          </button>
-        </div>
-      </div>
-    </div>
+    <Modal open={!!product} onOpenChange={(open) => !open && onClose()}>
+      <ModalHeader title="Edit Product" onClose={onClose} />
+      <ModalBody>
+        <FormField label="Name" htmlFor="p-name">
+          <Input id="p-name" value={name} onChange={(e) => setName(e.target.value)} />
+        </FormField>
+        <FormField label="Description" htmlFor="p-desc">
+          <Textarea id="p-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </FormField>
+        <FormField label="Price (IDR)" htmlFor="p-price">
+          <Input
+            id="p-price"
+            type="number"
+            min="0"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+          />
+        </FormField>
+        <label className="flex items-center gap-2 text-sm text-fg">
+          <input
+            type="checkbox"
+            checked={isActive}
+            onChange={(e) => setIsActive(e.target.checked)}
+            className="rounded border-border"
+          />
+          Active (shown in shop)
+        </label>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="secondary" onClick={onClose} disabled={busy}>
+          Cancel
+        </Button>
+        <Button onClick={handleSave} loading={busy}>
+          Save changes
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }

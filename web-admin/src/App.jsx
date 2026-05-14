@@ -7,10 +7,14 @@ import Transactions from './pages/Transactions.jsx';
 import Products from './pages/Products.jsx';
 import TempRoles from './pages/TempRoles.jsx';
 import Emails from './pages/Emails.jsx';
+import AuditLog from './pages/AuditLog.jsx';
+import UserLookup from './pages/UserLookup.jsx';
+import DiscordPost from './pages/DiscordPost.jsx';
+import BotStatus from './pages/BotStatus.jsx';
 
 function FullPageMessage({ children }) {
   return (
-    <div className="flex min-h-screen items-center justify-center text-slate-500">
+    <div className="flex min-h-screen items-center justify-center bg-bg text-muted-fg">
       {children}
     </div>
   );
@@ -19,7 +23,6 @@ function FullPageMessage({ children }) {
 function RequireAuth({ children }) {
   const { status } = useAuth();
   const location = useLocation();
-
   if (status === 'loading') {
     return <FullPageMessage>Loading...</FullPageMessage>;
   }
@@ -61,6 +64,10 @@ export default function App() {
         <Route path="/products" element={<ProtectedShell><Products /></ProtectedShell>} />
         <Route path="/temproles" element={<ProtectedShell><TempRoles /></ProtectedShell>} />
         <Route path="/emails" element={<ProtectedShell><Emails /></ProtectedShell>} />
+        <Route path="/users" element={<ProtectedShell><UserLookup /></ProtectedShell>} />
+        <Route path="/audit" element={<ProtectedShell><AuditLog /></ProtectedShell>} />
+        <Route path="/discord-post" element={<ProtectedShell><DiscordPost /></ProtectedShell>} />
+        <Route path="/bot-status" element={<ProtectedShell><BotStatus /></ProtectedShell>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>

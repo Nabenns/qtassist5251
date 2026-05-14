@@ -1,6 +1,37 @@
 import { useCallback, useEffect, useState } from 'react';
+import {
+  Search,
+  RefreshCw,
+  Eye,
+  CheckCircle2,
+  XCircle,
+  Receipt,
+  ImageOff
+} from 'lucide-react';
 import { api, formatIDR, formatDateTime } from '../api.js';
-import { StatusBadge } from '../components/StatusBadge.jsx';
+import { ApiError } from '../api.js';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
+import { Card, CardBody } from '../components/ui/Card.jsx';
+import { StatusBadge } from '../components/ui/Badge.jsx';
+import { Button } from '../components/ui/Button.jsx';
+import { Input, Select, FormField, Textarea } from '../components/ui/Input.jsx';
+import {
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter
+} from '../components/ui/Modal.jsx';
+import {
+  DataTable,
+  THead,
+  TBody,
+  TR,
+  TH,
+  TD,
+  TableLoading,
+  TableEmpty
+} from '../components/ui/Table.jsx';
+import { useToast } from '../components/ui/Toast.jsx';
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All' },
@@ -15,6 +46,7 @@ const STATUS_FILTERS = [
 const PAGE_SIZE = 25;
 
 export default function Transactions() {
+  const { toast } = useToast();
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState('pending_review');
@@ -23,6 +55,8 @@ export default function Transactions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [bulkSelected, setBulkSelected] = useState(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,6 +71,7 @@ export default function Transactions() {
       setItems(res.items);
       setTotal(res.total);
       setError(null);
+      setBulkSelected(new Set());
     } catch (err) {
       setError(err.message || 'Failed to load transactions');
     } finally {
@@ -49,25 +84,76 @@ export default function Transactions() {
   }, [load]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const canBulk = status === 'pending' || status === 'pending_review';
+
+  function toggleBulk(orderId) {
+    setBulkSelected((current) => {
+      const next = new Set(current);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      return next;
+    });
+  }
+
+  function toggleBulkAll() {
+    setBulkSelected((current) => {
+      const eligible = items
+        .filter((tx) => tx.status === 'pending' || tx.status === 'pending_review')
+        .map((tx) => tx.orderId);
+      const allSelected = eligible.every((id) => current.has(id));
+      if (allSelected) {
+        return new Set();
+      }
+      return new Set(eligible);
+    });
+  }
+
+  async function handleBulkApprove() {
+    if (bulkSelected.size === 0) return;
+    if (!confirm(`Approve ${bulkSelected.size} transaksi?`)) return;
+    setBulkBusy(true);
+    let success = 0;
+    let failed = 0;
+    for (const orderId of bulkSelected) {
+      try {
+        await api.post(`/api/transactions/${encodeURIComponent(orderId)}/approve`);
+        success++;
+      } catch (_) {
+        failed++;
+      }
+    }
+    setBulkBusy(false);
+    if (success > 0) {
+      toast.success(`${success} approved`, {
+        description: failed > 0 ? `${failed} failed` : undefined
+      });
+    } else if (failed > 0) {
+      toast.error(`${failed} failed`);
+    }
+    load();
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Transactions</h1>
-          <p className="text-sm text-slate-500">Review, approve, or reject manual payments.</p>
-        </div>
-        <button onClick={load} className="btn-secondary" disabled={loading}>
-          {loading ? 'Refreshing...' : 'Refresh'}
-        </button>
-      </div>
+      <PageHeader
+        title="Transactions"
+        description="Review, approve, atau reject pembayaran manual."
+        actions={
+          <Button
+            variant="secondary"
+            onClick={load}
+            loading={loading}
+            leadingIcon={RefreshCw}
+          >
+            Refresh
+          </Button>
+        }
+      />
 
-      <div className="card p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="label">Status</label>
-            <select
-              className="input"
+      <Card>
+        <CardBody className="flex flex-wrap items-end gap-3">
+          <FormField label="Status" className="min-w-[180px]">
+            <Select
               value={status}
               onChange={(e) => {
                 setPage(0);
@@ -75,15 +161,17 @@ export default function Transactions() {
               }}
             >
               {STATUS_FILTERS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
               ))}
-            </select>
-          </div>
-          <div className="flex-1 min-w-[260px]">
-            <label className="label">Search</label>
-            <input
-              className="input"
-              placeholder="order ID or user ID"
+            </Select>
+          </FormField>
+
+          <FormField label="Search" className="flex-1 min-w-[260px]">
+            <Input
+              leadingIcon={Search}
+              placeholder="order ID atau user ID"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {
@@ -93,136 +181,194 @@ export default function Transactions() {
                 }
               }}
             />
-          </div>
-          <button
-            className="btn-secondary"
+          </FormField>
+
+          <Button
+            variant="secondary"
             onClick={() => {
               setPage(0);
               load();
             }}
           >
-            Search
-          </button>
-        </div>
-      </div>
+            Apply
+          </Button>
+
+          {canBulk && bulkSelected.size > 0 ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-fg">
+                {bulkSelected.size} dipilih
+              </span>
+              <Button
+                variant="success"
+                size="sm"
+                onClick={handleBulkApprove}
+                loading={bulkBusy}
+                leadingIcon={CheckCircle2}
+              >
+                Bulk approve
+              </Button>
+            </div>
+          ) : null}
+        </CardBody>
+      </Card>
 
       {error ? (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 ring-1 ring-red-200">{error}</div>
+        <div className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger ring-1 ring-inset ring-danger/30">
+          {error}
+        </div>
       ) : null}
 
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50">
-              <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                <th className="px-5 py-2.5">Order ID</th>
-                <th className="px-5 py-2.5">User</th>
-                <th className="px-5 py-2.5">Product</th>
-                <th className="px-5 py-2.5">Amount</th>
-                <th className="px-5 py-2.5">Status</th>
-                <th className="px-5 py-2.5">Created</th>
-                <th className="px-5 py-2.5">Reviewed</th>
-                <th className="px-5 py-2.5"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {!loading && items.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-slate-500">No transactions match this filter.</td>
-                </tr>
-              ) : (
-                items.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-2.5 font-mono text-xs">{tx.orderId}</td>
-                    <td className="px-5 py-2.5 font-mono text-xs">{tx.userId}</td>
-                    <td className="px-5 py-2.5">{tx.productName || '-'}</td>
-                    <td className="px-5 py-2.5">{formatIDR(tx.amount)}</td>
-                    <td className="px-5 py-2.5"><StatusBadge status={tx.status} /></td>
-                    <td className="px-5 py-2.5 text-slate-500">{formatDateTime(tx.createdAt)}</td>
-                    <td className="px-5 py-2.5 text-slate-500">{tx.reviewedAt ? formatDateTime(tx.reviewedAt) : '-'}</td>
-                    <td className="px-5 py-2.5 text-right">
-                      <button onClick={() => setSelected(tx)} className="btn-secondary">Review</button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-2.5 text-sm text-slate-600">
-          <div>{total} total · page {page + 1} / {totalPages}</div>
+      <Card>
+        <DataTable>
+          <THead>
+            <TR>
+              {canBulk ? (
+                <TH className="w-8">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all"
+                    onChange={toggleBulkAll}
+                    checked={
+                      items.length > 0 &&
+                      items
+                        .filter((tx) => tx.status === 'pending' || tx.status === 'pending_review')
+                        .every((tx) => bulkSelected.has(tx.orderId))
+                    }
+                    className="rounded border-border"
+                  />
+                </TH>
+              ) : null}
+              <TH>Order ID</TH>
+              <TH>User</TH>
+              <TH>Product</TH>
+              <TH>Amount</TH>
+              <TH>Status</TH>
+              <TH>Created</TH>
+              <TH>Reviewed</TH>
+              <TH align="right"></TH>
+            </TR>
+          </THead>
+          {loading ? (
+            <TableLoading columns={canBulk ? 9 : 8} rows={6} />
+          ) : items.length === 0 ? (
+            <TableEmpty
+              columns={canBulk ? 9 : 8}
+              icon={Receipt}
+              title="Tidak ada transaksi"
+              description="Tidak ada transaksi yang cocok dengan filter ini."
+            />
+          ) : (
+            <TBody>
+              {items.map((tx) => {
+                const eligibleForBulk = tx.status === 'pending' || tx.status === 'pending_review';
+                return (
+                  <TR key={tx.id}>
+                    {canBulk ? (
+                      <TD>
+                        {eligibleForBulk ? (
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${tx.orderId}`}
+                            checked={bulkSelected.has(tx.orderId)}
+                            onChange={() => toggleBulk(tx.orderId)}
+                            className="rounded border-border"
+                          />
+                        ) : null}
+                      </TD>
+                    ) : null}
+                    <TD className="font-mono text-xs">{tx.orderId}</TD>
+                    <TD className="font-mono text-xs">{tx.userId}</TD>
+                    <TD>{tx.productName || '-'}</TD>
+                    <TD>{formatIDR(tx.amount)}</TD>
+                    <TD>
+                      <StatusBadge status={tx.status} />
+                    </TD>
+                    <TD className="text-muted-fg">{formatDateTime(tx.createdAt)}</TD>
+                    <TD className="text-muted-fg">{tx.reviewedAt ? formatDateTime(tx.reviewedAt) : '-'}</TD>
+                    <TD align="right">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setSelected(tx)}
+                        leadingIcon={Eye}
+                      >
+                        Review
+                      </Button>
+                    </TD>
+                  </TR>
+                );
+              })}
+            </TBody>
+          )}
+        </DataTable>
+        <div className="flex items-center justify-between border-t border-border bg-surface-2 px-5 py-2.5 text-sm text-muted-fg">
+          <div>
+            {total} total · page {page + 1} / {totalPages}
+          </div>
           <div className="flex gap-2">
-            <button
-              className="btn-secondary"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0 || loading}
             >
               Previous
-            </button>
-            <button
-              className="btn-secondary"
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1 || loading}
             >
               Next
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
+      </Card>
 
-      {selected ? (
-        <ReviewModal
-          tx={selected}
-          onClose={() => setSelected(null)}
-          onChanged={() => {
-            setSelected(null);
-            load();
-          }}
-        />
-      ) : null}
+      <ReviewModal
+        tx={selected}
+        onClose={() => setSelected(null)}
+        onChanged={() => {
+          setSelected(null);
+          load();
+        }}
+      />
     </div>
   );
 }
 
 function ReviewModal({ tx, onClose, onChanged }) {
+  const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const [showReject, setShowReject] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [error, setError] = useState(null);
-  const [detail, setDetail] = useState(null);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    api
-      .get(`/api/transactions/${encodeURIComponent(tx.orderId)}`)
-      .then((d) => {
-        if (!cancelled) setDetail(d);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message || 'Failed to load transaction details');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [tx.orderId]);
+    setShowReject(false);
+    setRejectReason('');
+    setImgError(false);
+  }, [tx?.id]);
 
   async function handleApprove() {
-    setError(null);
     setBusy(true);
     try {
       await api.post(`/api/transactions/${encodeURIComponent(tx.orderId)}/approve`);
+      toast.success('Pembayaran disetujui', { description: tx.orderId });
       onChanged();
     } catch (err) {
-      setError(err.message || 'Approve failed');
+      toast.error('Gagal menyetujui', {
+        description: err instanceof ApiError ? err.message : 'Coba lagi.'
+      });
     } finally {
       setBusy(false);
     }
   }
 
   async function handleReject() {
-    setError(null);
     if (!rejectReason.trim()) {
-      setError('Alasan penolakan wajib diisi.');
+      toast.warning('Alasan wajib diisi');
       return;
     }
     setBusy(true);
@@ -230,122 +376,154 @@ function ReviewModal({ tx, onClose, onChanged }) {
       await api.post(`/api/transactions/${encodeURIComponent(tx.orderId)}/reject`, {
         reason: rejectReason.trim()
       });
+      toast.success('Pembayaran ditolak', { description: tx.orderId });
       onChanged();
     } catch (err) {
-      setError(err.message || 'Reject failed');
+      toast.error('Gagal menolak', {
+        description: err instanceof ApiError ? err.message : 'Coba lagi.'
+      });
     } finally {
       setBusy(false);
     }
   }
 
+  if (!tx) {
+    return <Modal open={false} onOpenChange={() => {}}>{null}</Modal>;
+  }
+
   const canAct = tx.status === 'pending' || tx.status === 'pending_review';
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
-      <div className="card w-full max-w-2xl">
-        <div className="flex items-start justify-between border-b border-slate-200 px-5 py-3">
-          <div>
-            <h2 className="font-semibold text-slate-900">Transaction Review</h2>
-            <p className="text-xs font-mono text-slate-500">{tx.orderId}</p>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
+    <Modal open={!!tx} onOpenChange={(open) => !open && onClose()}>
+      <ModalHeader
+        title="Transaction Review"
+        description={tx.orderId}
+        onClose={onClose}
+      />
+      <ModalBody>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <Field label="User ID" value={<span className="font-mono text-xs">{tx.userId}</span>} />
+          <Field label="Product" value={tx.productName || '-'} />
+          <Field label="Amount" value={formatIDR(tx.amount)} />
+          <Field label="Status" value={<StatusBadge status={tx.status} />} />
+          <Field label="Created" value={formatDateTime(tx.createdAt)} />
+          <Field label="Reviewed" value={tx.reviewedAt ? formatDateTime(tx.reviewedAt) : '-'} />
         </div>
-        <div className="space-y-4 px-5 py-4">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <div className="text-xs uppercase text-slate-500">User ID</div>
-              <div className="font-mono text-xs">{tx.userId}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase text-slate-500">Product</div>
-              <div>{tx.productName || (detail && detail.product && detail.product.name) || '-'}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase text-slate-500">Amount</div>
-              <div>{formatIDR(tx.amount)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase text-slate-500">Status</div>
-              <div><StatusBadge status={tx.status} /></div>
-            </div>
-            <div>
-              <div className="text-xs uppercase text-slate-500">Created</div>
-              <div>{formatDateTime(tx.createdAt)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase text-slate-500">Reviewed</div>
-              <div>{tx.reviewedAt ? formatDateTime(tx.reviewedAt) : '-'}</div>
-            </div>
+
+        {tx.rejectionReason ? (
+          <div className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger ring-1 ring-inset ring-danger/30">
+            <div className="font-medium">Rejection reason</div>
+            <div className="mt-0.5">{tx.rejectionReason}</div>
           </div>
+        ) : null}
 
-          {tx.rejectionReason ? (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 ring-1 ring-red-200">
-              <div className="font-medium">Rejection reason</div>
-              <div className="mt-0.5">{tx.rejectionReason}</div>
+        {tx.paymentProofUrl ? (
+          imgError ? (
+            <div className="rounded-lg border border-border bg-surface-2 px-3 py-3 text-sm text-muted-fg flex items-center gap-2">
+              <ImageOff className="h-4 w-4" />
+              <span>Gambar tidak bisa di-load.</span>
+              <a
+                href={tx.paymentProofUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Buka original
+              </a>
             </div>
-          ) : null}
-
-          {tx.paymentProofUrl ? (
+          ) : (
             <div>
-              <div className="mb-1 text-xs uppercase text-slate-500">Payment Proof</div>
+              <div className="mb-1 text-xs uppercase text-muted-fg">Payment Proof</div>
               <a href={tx.paymentProofUrl} target="_blank" rel="noopener noreferrer" className="block">
                 <img
                   src={tx.paymentProofUrl}
                   alt="payment proof"
-                  className="max-h-96 rounded-lg border border-slate-200 object-contain"
+                  loading="lazy"
+                  onError={() => setImgError(true)}
+                  className="max-h-96 w-full rounded-lg border border-border object-contain bg-surface-2"
                 />
               </a>
-              <div className="mt-1 text-xs text-slate-500">
-                <a className="text-brand-700 hover:underline" href={tx.paymentProofUrl} target="_blank" rel="noopener noreferrer">Open original</a>
+              <div className="mt-1 text-xs">
+                <a
+                  className="text-primary hover:underline"
+                  href={tx.paymentProofUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Buka original
+                </a>
               </div>
             </div>
-          ) : (
-            <div className="rounded-md bg-slate-50 p-3 text-sm text-slate-600 ring-1 ring-slate-200">
-              No payment proof attached.
-            </div>
-          )}
-
-          {error ? (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 ring-1 ring-red-200">{error}</div>
-          ) : null}
-
-          {showReject ? (
-            <div className="space-y-2">
-              <label className="label">Alasan penolakan</label>
-              <textarea
-                className="input min-h-[100px]"
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Bukti tidak valid / nominal tidak sesuai / dll."
-              />
-            </div>
-          ) : null}
-        </div>
-
-        {canAct ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
-            {showReject ? (
-              <>
-                <button onClick={() => setShowReject(false)} className="btn-secondary" disabled={busy}>Cancel</button>
-                <button onClick={handleReject} className="btn-danger" disabled={busy}>
-                  {busy ? 'Rejecting...' : 'Confirm Reject'}
-                </button>
-              </>
-            ) : (
-              <>
-                <button onClick={() => setShowReject(true)} className="btn-danger" disabled={busy}>Reject</button>
-                <button onClick={handleApprove} className="btn-success" disabled={busy}>
-                  {busy ? 'Approving...' : 'Approve'}
-                </button>
-              </>
-            )}
-          </div>
+          )
         ) : (
-          <div className="flex justify-end border-t border-slate-200 bg-slate-50 px-5 py-3">
-            <button onClick={onClose} className="btn-secondary">Close</button>
+          <div className="rounded-lg border border-border bg-surface-2 px-3 py-3 text-sm text-muted-fg">
+            Tidak ada bukti pembayaran terlampir.
           </div>
         )}
-      </div>
+
+        {showReject ? (
+          <FormField label="Alasan penolakan">
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Bukti tidak valid / nominal tidak sesuai / dll."
+              rows={4}
+            />
+          </FormField>
+        ) : null}
+      </ModalBody>
+
+      {canAct ? (
+        <ModalFooter>
+          {showReject ? (
+            <>
+              <Button variant="secondary" onClick={() => setShowReject(false)} disabled={busy}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleReject}
+                loading={busy}
+                leadingIcon={XCircle}
+              >
+                Confirm Reject
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="danger"
+                onClick={() => setShowReject(true)}
+                disabled={busy}
+                leadingIcon={XCircle}
+              >
+                Reject
+              </Button>
+              <Button
+                variant="success"
+                onClick={handleApprove}
+                loading={busy}
+                leadingIcon={CheckCircle2}
+              >
+                Approve
+              </Button>
+            </>
+          )}
+        </ModalFooter>
+      ) : (
+        <ModalFooter>
+          <Button variant="secondary" onClick={onClose}>Close</Button>
+        </ModalFooter>
+      )}
+    </Modal>
+  );
+}
+
+function Field({ label, value }) {
+  return (
+    <div>
+      <div className="text-xs uppercase tracking-wide text-muted-fg">{label}</div>
+      <div className="mt-0.5">{value}</div>
     </div>
   );
 }

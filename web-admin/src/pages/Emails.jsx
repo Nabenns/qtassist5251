@@ -1,5 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshCw, Search, Mail } from 'lucide-react';
 import { api, formatDateTime } from '../api.js';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
+import { Card } from '../components/ui/Card.jsx';
+import { Button } from '../components/ui/Button.jsx';
+import { Input, FormField } from '../components/ui/Input.jsx';
+import {
+  DataTable,
+  THead,
+  TBody,
+  TR,
+  TH,
+  TD,
+  TableLoading,
+  TableEmpty
+} from '../components/ui/Table.jsx';
 
 export default function Emails() {
   const [items, setItems] = useState([]);
@@ -26,74 +41,88 @@ export default function Emails() {
     load();
   }, [load]);
 
-  const filtered = search.trim()
-    ? items.filter((b) => {
-        const term = search.trim().toLowerCase();
-        return (
-          (b.email || '').toLowerCase().includes(term) ||
-          (b.userId || '').toLowerCase().includes(term)
-        );
-      })
-    : items;
+  const filtered = useMemo(() => {
+    if (!search.trim()) return items;
+    const term = search.trim().toLowerCase();
+    return items.filter(
+      (b) =>
+        (b.email || '').toLowerCase().includes(term) ||
+        (b.userId || '').toLowerCase().includes(term)
+    );
+  }, [items, search]);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Email Bindings</h1>
-          <p className="text-sm text-slate-500">{total} total registered emails.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            className="input"
-            placeholder="Filter by email or user ID"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <button onClick={load} className="btn-secondary" disabled={loading}>
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Email Bindings"
+        description={`${total} total registered emails.`}
+        actions={
+          <div className="flex items-center gap-2">
+            <FormField className="min-w-[260px]">
+              <Input
+                leadingIcon={Search}
+                placeholder="Filter email atau user ID"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </FormField>
+            <Button
+              variant="secondary"
+              onClick={load}
+              loading={loading}
+              leadingIcon={RefreshCw}
+            >
+              Refresh
+            </Button>
+          </div>
+        }
+      />
 
       {error ? (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 ring-1 ring-red-200">{error}</div>
+        <div className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger ring-1 ring-inset ring-danger/30">
+          {error}
+        </div>
       ) : null}
 
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50">
-              <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                <th className="px-5 py-2.5">Email</th>
-                <th className="px-5 py-2.5">User ID</th>
-                <th className="px-5 py-2.5">Server ID</th>
-                <th className="px-5 py-2.5">Registered</th>
-                <th className="px-5 py-2.5">Last Updated</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {!loading && filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-5 py-8 text-center text-slate-500">
-                    {items.length === 0 ? 'No email bindings yet.' : 'No emails match the filter.'}
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-2.5">{b.email}</td>
-                    <td className="px-5 py-2.5 font-mono text-xs">{b.userId}</td>
-                    <td className="px-5 py-2.5 font-mono text-xs">{b.serverId}</td>
-                    <td className="px-5 py-2.5 text-slate-500">{formatDateTime(b.registeredAt)}</td>
-                    <td className="px-5 py-2.5 text-slate-500">{formatDateTime(b.updatedAt)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Card>
+        <DataTable>
+          <THead>
+            <TR>
+              <TH>Email</TH>
+              <TH>User ID</TH>
+              <TH>Server ID</TH>
+              <TH>Registered</TH>
+              <TH>Last Updated</TH>
+            </TR>
+          </THead>
+          {loading ? (
+            <TableLoading columns={5} rows={5} />
+          ) : filtered.length === 0 ? (
+            <TableEmpty
+              columns={5}
+              icon={Mail}
+              title={items.length === 0 ? 'Belum ada email' : 'Tidak ada hasil'}
+              description={
+                items.length === 0
+                  ? 'Email akan muncul saat user mendaftar lewat /email-setup di Discord.'
+                  : 'Tidak ada email yang cocok dengan filter ini.'
+              }
+            />
+          ) : (
+            <TBody>
+              {filtered.map((b) => (
+                <TR key={b.id}>
+                  <TD>{b.email}</TD>
+                  <TD className="font-mono text-xs">{b.userId}</TD>
+                  <TD className="font-mono text-xs">{b.serverId}</TD>
+                  <TD className="text-muted-fg">{formatDateTime(b.registeredAt)}</TD>
+                  <TD className="text-muted-fg">{formatDateTime(b.updatedAt)}</TD>
+                </TR>
+              ))}
+            </TBody>
+          )}
+        </DataTable>
+      </Card>
     </div>
   );
 }
