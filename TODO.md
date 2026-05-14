@@ -58,67 +58,71 @@ only `backupService.js` and `cronService.js` would.
 
 ## IB integration: Phase 2 — wire real Valetax API
 
-**Status:** Phase 1 complete (foundation). Phase 2 blocked on Playwright
-MCP investigation.
+**Status:** Phase 2 implemented (live API). Field-name mapping verified
+opportunistically via heuristics; will need a 5-minute reconciliation
+the first time a real client appears in the IB report.
 
-**What Phase 1 ships:**
+**What is now live (`VALETAX_MODE=live`):**
 
-- Database models `IbConfig`, `IbAccount`, `IbVolumeRecord`
-- Encrypted-cookie helper (`src/utils/secrets.js`, AES-256-GCM keyed off
-  `JWT_SECRET`)
-- Discord `/ib-setup` admin command + button + modal flow that captures
-  the broker account number
-- Cron jobs:
-  - Every minute: process the IB verification queue (re-runs
-    `valetaxService.lookupAccount` for any `pending` row that has come
-    due based on `retryIntervalMinutes`)
-  - Every 04:00 WIB: sample daily trading volume, advance
-    `consecutiveZeroVolumeDays`, and revoke the IB role once the count
-    reaches `volumeGraceDays`
-- Web admin pages:
-  - **Pengaturan IB** — toggle, role/channel pickers, retry settings,
-    deposit / volume thresholds, encrypted cookie editor, cookie
-    sanity-check button
-  - **Akun IB** — list with status filters, detail modal with volume
-    history, manual re-verify, manual role removal
-- REST API under `/api/ib/*`
-- Audit log entries for `ib_verified`, `ib_failed`, `ib_role_removed`
+- Auth via the `fx-token` request header (encoded JWT-like blob with
+  `userId` / `expiredAt` / `expiration` / `prolongation`). Browser
+  cookies are NOT used.
+- Token decoded locally on every call so an obviously-expired token
+  fails fast with a clear error before the HTTP round-trip.
+- `lookupAccount` paginates through
+  `POST /api.user.partnership.report.by.client.v2.getRange?skip=N&take=100`
+  with a 1-year-back date window, scanning every item for a matching
+  account number. Stops on first match. Tolerates several spellings
+  for the account-number field (`accountNumber`, `accountId`, `account`,
+  `login`, `mt5Account`, `mt4Account`, `tradingAccount`, `id`).
+- `fetchAccountVolume` calls the same endpoint with `from`/`to` set to
+  the start/end of one Asia/Jakarta day, and reads volume from
+  `totalVolumeInLotsUsd` (with fallbacks `totalVolumeInLots`,
+  `totalVolume`, `volumeLots`, `lots`).
+- `testCookie` uses the cheap
+  `POST /api.user.partnership.report.summaryPartnerToMib?partnerId=N`
+  endpoint and 401-detects expired tokens.
+- `VALETAX_DEBUG=true` logs the full request URL, body, and a 400-char
+  preview of every response to console — invaluable when reconciling
+  field names against a real client.
+- Mock branch (default) preserved for offline development.
 
-**What is stubbed:**
+**What may still need attention once a real client exists:**
 
-`src/services/valetaxService.js` returns deterministic mock data so all
-flows above can be exercised end-to-end. Specifically:
+The summary endpoint we already saw exposes only aggregate counters
+(`totalDeposit`, `totalVolumeInLotsUsd`, `numberOfClients`, etc.). The
+per-client item shape inside `items[]` could not be observed because
+the operator's IB list was empty during capture. The first time a
+client registers and the bot calls Valetax:
 
-- Account number ending with `99` → "found", USD 250 deposit, active
-- Ending with `00` → found but only USD 50 (below default min)
-- Ending with two letters → throws `ValetaxAuthError` (mocks expired cookie)
-- Anything else → not found
-- Volume per day is deterministic pseudo-random 0..3 lots (30% chance of zero)
+1. Set `VALETAX_DEBUG=true` in `.env`, restart bot.
+2. Have the user submit their broker account.
+3. Look for the `LOOKUP-SAMPLE-KEYS` log line — it dumps the keys of
+   the first row of the response. If the actual key for the account
+   number is none of the candidates listed in `extractAccountNumber()`
+   (currently `accountNumber`, `accountId`, `account`, `login`,
+   `mt5Account`, `mt4Account`, `tradingAccount`, `id`), append the
+   correct key to `extractAccountNumber()` in
+   `src/services/valetaxService.js`.
+4. Same drill for `extractVolume` if no volume registers correctly.
+5. Restart bot; remove `VALETAX_DEBUG` from `.env`.
 
-Run with `VALETAX_MODE=` (default) for mock; `VALETAX_MODE=live` is set
-aside for Phase 2.
+**Operator checklist for go-live:**
 
-**Phase 2 plan (after Playwright MCP is installed):**
+- [ ] Set `VALETAX_MODE=live` in `.env`
+- [ ] Open Valetax IB dashboard in a browser, copy the fresh `fx-token`
+      from any partnership API request's headers (DevTools → Network →
+      pick any `api.user.partnership.*` request → Headers → `fx-token`)
+- [ ] Web admin → **Pengaturan IB** → paste the token, set Partner ID
+      (your `userId`, e.g. 895830), save
+- [ ] Click **Tes token** — should report "OK"
+- [ ] Run `/ib-setup` in Discord
+- [ ] When the token expires (~1 h of inactivity), the dashboard's
+      cookie-status badge turns red; paste a fresh token
 
-1. Use Playwright MCP to log into a Valetax IB dashboard and capture:
-   - Cookie domain + name(s)
-   - Endpoint URL for the IB clients listing (likely a JSON XHR)
-   - Endpoint URL for the per-account daily volume report
-   - Exact JSON shapes of both responses
-2. Update `src/services/valetaxService.js`:
-   - Set `VALETAX_BASE_URL` to the right origin (search for [VALETAX-TODO])
-   - Replace mock branches under `process.env.VALETAX_MODE === 'live'`
-   - Map response fields into the `{ found, accountNumber, totalDepositUsd,
-     status, raw }` and `{ volumeLots, raw }` shapes already used by
-     `ibService`
-   - Implement a real `testCookie` against a cheap endpoint (likely
-     `/api/me` equivalent)
-   - Confirm staleness detection: redirect to `/login`, 401, 403, or some
-     other shape — the existing code handles all four but the chosen
-     branch should match real-world behavior
-3. Set `VALETAX_MODE=live` in `.env`, run a small set of registrations
-   end-to-end on a staging guild, verify role grant + role revoke flows.
-4. Document any per-environment quirks in this file before removing it.
+**Known limitations to watch:**
 
-No changes to `ibService` or the dashboard pages should be needed for
-Phase 2 — they only call into the public surface of `valetaxService`.
+- Token expiry is short. The bot does not auto-refresh because there
+  is no documented refresh endpoint; the operator must paste in a new
+  token periodically. A future improvement would be to drive a
+  Playwright-based headless re-login when the token goes stale.

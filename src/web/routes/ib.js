@@ -65,6 +65,8 @@ function buildRouter({ getDiscordClient }) {
         'registrationChannelId',
         'notificationChannelId',
         'ibLink',
+        'partnerId',
+        'valetaxBaseUrl',
         'retryIntervalMinutes',
         'maxRetries',
         'minDepositUsd',
@@ -377,6 +379,8 @@ function serializeConfig(config) {
     registrationChannelId: config.registrationChannelId,
     notificationChannelId: config.notificationChannelId,
     ibLink: config.ibLink,
+    partnerId: config.partnerId,
+    valetaxBaseUrl: config.valetaxBaseUrl,
     cookie: {
       configured: Boolean(config.encryptedCookie),
       preview: cookieMasked,

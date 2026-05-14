@@ -45,6 +45,8 @@ export default function IbSettings() {
   const [registrationChannelId, setRegistrationChannelId] = useState('');
   const [notificationChannelId, setNotificationChannelId] = useState('');
   const [ibLink, setIbLink] = useState('');
+  const [partnerId, setPartnerId] = useState('');
+  const [valetaxBaseUrl, setValetaxBaseUrl] = useState('');
   const [retryInterval, setRetryInterval] = useState(5);
   const [maxRetries, setMaxRetries] = useState(3);
   const [minDeposit, setMinDeposit] = useState(100);
@@ -86,6 +88,8 @@ export default function IbSettings() {
         setRegistrationChannelId(res.registrationChannelId || '');
         setNotificationChannelId(res.notificationChannelId || '');
         setIbLink(res.ibLink || '');
+        setPartnerId(res.partnerId || '');
+        setValetaxBaseUrl(res.valetaxBaseUrl || '');
         setRetryInterval(res.retryIntervalMinutes ?? 5);
         setMaxRetries(res.maxRetries ?? 3);
         setMinDeposit(res.minDepositUsd ?? 100);
@@ -126,6 +130,8 @@ export default function IbSettings() {
         registrationChannelId: registrationChannelId || null,
         notificationChannelId: notificationChannelId || null,
         ibLink: ibLink.trim() || null,
+        partnerId: partnerId.trim() || null,
+        valetaxBaseUrl: valetaxBaseUrl.trim() || null,
         retryIntervalMinutes: Number(retryInterval),
         maxRetries: Number(maxRetries),
         minDepositUsd: Number(minDeposit),
@@ -158,15 +164,15 @@ export default function IbSettings() {
     try {
       const res = await api.post('/api/ib/config/test-cookie', { serverId });
       if (res.ok) {
-        toast.success('Cookie valid');
+        toast.success('Token valid');
       } else {
-        toast.warning('Cookie bermasalah', {
+        toast.warning('Token bermasalah', {
           description: res.message || res.status
         });
       }
       loadConfig(serverId);
     } catch (err) {
-      toast.error('Gagal mengetes cookie', {
+      toast.error('Gagal mengetes token', {
         description: err instanceof ApiError ? err.message : 'Coba lagi.'
       });
     } finally {
@@ -176,25 +182,16 @@ export default function IbSettings() {
 
   async function handleClearCookie() {
     if (!serverId) return;
-    if (!confirm('Hapus cookie Valetax yang tersimpan?')) return;
+    if (!confirm('Hapus token Valetax yang tersimpan?')) return;
     try {
-      const res = await api.delete('/api/ib/config/cookie', {
-        // delete with body via fetch wrapper not supported; fall back to put
-      });
-      // The api wrapper does not send body with DELETE, so we re-fetch.
+      // The api wrapper does not send body with DELETE; fall back to PUT cookie="".
+      await api.put('/api/ib/config', { serverId, cookie: '' });
       loadConfig(serverId);
-      toast.success('Cookie dihapus');
+      toast.success('Token dihapus');
     } catch (err) {
-      // If DELETE without body fails (no serverId), fall back to PUT cookie="".
-      try {
-        await api.put('/api/ib/config', { serverId, cookie: '' });
-        loadConfig(serverId);
-        toast.success('Cookie dihapus');
-      } catch (err2) {
-        toast.error('Gagal menghapus cookie', {
-          description: err2 instanceof ApiError ? err2.message : 'Coba lagi.'
-        });
-      }
+      toast.error('Gagal menghapus token', {
+        description: err instanceof ApiError ? err.message : 'Coba lagi.'
+      });
     }
   }
 
@@ -325,6 +322,27 @@ export default function IbSettings() {
                     placeholder="https://link.valetax.com/?ref=..."
                   />
                 </FormField>
+                <FormField
+                  label="Valetax Partner ID"
+                  hint="Auto-isi dari token kalau kosong. Contoh: 895830"
+                >
+                  <Input
+                    value={partnerId}
+                    onChange={(e) => setPartnerId(e.target.value)}
+                    placeholder="895830"
+                  />
+                </FormField>
+                <FormField
+                  label="Valetax base URL (opsional)"
+                  hint="Default https://ma.valetaxid.com"
+                  className="md:col-span-2"
+                >
+                  <Input
+                    value={valetaxBaseUrl}
+                    onChange={(e) => setValetaxBaseUrl(e.target.value)}
+                    placeholder="https://ma.valetaxid.com"
+                  />
+                </FormField>
               </div>
             </CardBody>
           </Card>
@@ -333,10 +351,10 @@ export default function IbSettings() {
             <CardHeader
               title={
                 <span className="flex items-center gap-2">
-                  <Cookie className="h-4 w-4" /> Cookie Valetax
+                  <Cookie className="h-4 w-4" /> Token Valetax (fx-token)
                 </span>
               }
-              description="Session cookie untuk akses dashboard IB"
+              description="JWT-like token dari header request, BUKAN browser cookie"
             />
             <CardBody className="space-y-3">
               <div className="flex items-center justify-between text-sm">
@@ -351,7 +369,7 @@ export default function IbSettings() {
                     Tersimpan: <span className="font-mono text-fg">{config?.cookie?.preview}</span>
                   </>
                 ) : (
-                  <span>Belum ada cookie tersimpan.</span>
+                  <span>Belum ada token tersimpan.</span>
                 )}
               </div>
               {config?.cookie?.lastTestedAt ? (
@@ -365,11 +383,14 @@ export default function IbSettings() {
                 </div>
               ) : null}
 
-              <FormField label="Cookie baru" hint="Paste seluruh string cookie dari DevTools. Akan dienkripsi sebelum disimpan.">
+              <FormField
+                label="Token baru"
+                hint="Buka Valetax → DevTools → Network → klik request → cari header `fx-token` → paste isinya. Token expire ~1 jam, perlu di-refresh berkala."
+              >
                 <Textarea
                   value={cookieInput}
                   onChange={(e) => setCookieInput(e.target.value)}
-                  placeholder="session=...; XSRF-TOKEN=...; ..."
+                  placeholder="eyJpZCI6...."
                   rows={4}
                   className="font-mono text-xs"
                 />
@@ -384,7 +405,7 @@ export default function IbSettings() {
                   loading={testing}
                   disabled={!config?.cookie?.configured && !cookieInput.trim()}
                 >
-                  Tes cookie
+                  Tes token
                 </Button>
                 <Button
                   size="sm"
@@ -393,7 +414,7 @@ export default function IbSettings() {
                   onClick={handleClearCookie}
                   disabled={!config?.cookie?.configured}
                 >
-                  Hapus cookie
+                  Hapus token
                 </Button>
               </div>
             </CardBody>

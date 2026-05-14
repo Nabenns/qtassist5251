@@ -53,11 +53,23 @@ const IbConfig = sequelize.define('IbConfig', {
     field: 'ib_link',
     comment: 'Affiliate / IB referral URL shown to users'
   },
+  partnerId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'partner_id',
+    comment: 'Valetax partner / userId (e.g. 895830). Required for live verification.'
+  },
+  valetaxBaseUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'valetax_base_url',
+    comment: 'Override Valetax origin (default https://ma.valetaxid.com)'
+  },
   encryptedCookie: {
     type: DataTypes.TEXT,
     allowNull: true,
     field: 'encrypted_cookie',
-    comment: 'AES-GCM encrypted Valetax IB session cookie blob (iv:tag:cipher base64)'
+    comment: 'AES-GCM encrypted Valetax fx-token (the JWT-like blob from request headers, NOT browser cookie)'
   },
   cookieUpdatedAt: {
     type: DataTypes.DATE,
