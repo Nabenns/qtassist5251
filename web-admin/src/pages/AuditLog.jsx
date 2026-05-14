@@ -16,6 +16,7 @@ import {
   TableLoading,
   TableEmpty
 } from '../components/ui/Table.jsx';
+import { useRealtimeEvent } from '../lib/realtime.jsx';
 
 const ACTION_TONES = {
   temprole_add: 'success',
@@ -80,6 +81,12 @@ export default function AuditLog() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // The audit log captures temprole and transaction events; refresh on any
+  // realtime signal so admins watching the page see new entries appear.
+  useRealtimeEvent('*', () => {
+    load();
+  });
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 

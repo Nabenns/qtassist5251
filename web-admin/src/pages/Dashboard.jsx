@@ -50,6 +50,7 @@ import {
   tooltipItemStyle
 } from '../components/charts/theme.js';
 import { Select, FormField } from '../components/ui/Input.jsx';
+import { useRealtimeEvent } from '../lib/realtime.jsx';
 import { cn } from '../lib/cn.js';
 
 const RANGE_OPTIONS = [
@@ -124,6 +125,15 @@ export default function Dashboard() {
   useEffect(() => {
     loadSeries(days);
   }, [days]);
+
+  // Refresh both summary and timeseries when a transaction event fires.
+  useRealtimeEvent(
+    ['transaction.pending_review', 'transaction.approved', 'transaction.rejected'],
+    () => {
+      load();
+      loadSeries(days);
+    }
+  );
 
   const totals = data?.totals;
   const revenue = data?.revenue;

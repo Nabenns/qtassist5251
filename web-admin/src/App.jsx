@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth } from './auth.jsx';
+import { useAuth } from './auth.jsx';
 import Layout from './components/Layout.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -49,28 +49,26 @@ function ProtectedShell({ children }) {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            <RedirectIfAuthed>
-              <Login />
-            </RedirectIfAuthed>
-          }
-        />
-        <Route path="/" element={<ProtectedShell><Dashboard /></ProtectedShell>} />
-        <Route path="/transactions" element={<ProtectedShell><Transactions /></ProtectedShell>} />
-        <Route path="/products" element={<ProtectedShell><Products /></ProtectedShell>} />
-        <Route path="/temproles" element={<ProtectedShell><TempRoles /></ProtectedShell>} />
-        <Route path="/emails" element={<ProtectedShell><Emails /></ProtectedShell>} />
-        <Route path="/users" element={<ProtectedShell><UserLookup /></ProtectedShell>} />
-        <Route path="/users/:userId" element={<ProtectedShell><UserLookup /></ProtectedShell>} />
-        <Route path="/audit" element={<ProtectedShell><AuditLog /></ProtectedShell>} />
-        <Route path="/discord-post" element={<ProtectedShell><DiscordPost /></ProtectedShell>} />
-        <Route path="/bot-status" element={<ProtectedShell><BotStatus /></ProtectedShell>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AuthProvider>
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          <RedirectIfAuthed>
+            <Login />
+          </RedirectIfAuthed>
+        }
+      />
+      <Route path="/" element={<ProtectedShell><Dashboard /></ProtectedShell>} />
+      <Route path="/transactions" element={<ProtectedShell><Transactions /></ProtectedShell>} />
+      <Route path="/products" element={<ProtectedShell><Products /></ProtectedShell>} />
+      <Route path="/temproles" element={<ProtectedShell><TempRoles /></ProtectedShell>} />
+      <Route path="/emails" element={<ProtectedShell><Emails /></ProtectedShell>} />
+      <Route path="/users" element={<ProtectedShell><UserLookup /></ProtectedShell>} />
+      <Route path="/users/:userId" element={<ProtectedShell><UserLookup /></ProtectedShell>} />
+      <Route path="/audit" element={<ProtectedShell><AuditLog /></ProtectedShell>} />
+      <Route path="/discord-post" element={<ProtectedShell><DiscordPost /></ProtectedShell>} />
+      <Route path="/bot-status" element={<ProtectedShell><BotStatus /></ProtectedShell>} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

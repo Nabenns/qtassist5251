@@ -32,6 +32,7 @@ import {
   TableEmpty
 } from '../components/ui/Table.jsx';
 import { useToast } from '../components/ui/Toast.jsx';
+import { useRealtimeEvent } from '../lib/realtime.jsx';
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All' },
@@ -82,6 +83,15 @@ export default function Transactions() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Auto-reload when a relevant realtime event arrives so the admin always
+  // sees the latest list without manually refreshing.
+  useRealtimeEvent(
+    ['transaction.pending_review', 'transaction.approved', 'transaction.rejected'],
+    () => {
+      load();
+    }
+  );
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const canBulk = status === 'pending' || status === 'pending_review';

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Receipt,
@@ -15,12 +15,20 @@ import {
   Sun,
   Menu,
   X,
-  ChevronDown
+  ChevronDown,
+  Bell,
+  BellOff,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAuth } from '../auth.jsx';
 import { useTheme } from '../lib/theme.jsx';
+import { useRealtime, useRealtimeEvent } from '../lib/realtime.jsx';
+import { useDesktopNotifications } from '../lib/notifications.js';
+import { useToast } from './ui/Toast.jsx';
 import { cn } from '../lib/cn.js';
+import { Tooltip } from './ui/Tooltip.jsx';
 import { Button } from './ui/Button.jsx';
 
 const navSections = [
@@ -50,11 +58,44 @@ const navSections = [
 
 export default function Layout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const notifications = useDesktopNotifications();
 
   // Close the sheet whenever the route changes
   useEffect(() => {
     setMobileOpen(false);
-  }, [children]);
+  }, [location.pathname]);
+
+  // Wire realtime events to toasts + browser notifications.
+  useRealtimeEvent(['transaction.pending_review'], (evt) => {
+    const formatted = new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(evt.amount || 0);
+    const description = `${formatted} · ${evt.productName || 'Unknown product'}`;
+    toast.info('Bukti pembayaran baru', {
+      description,
+      duration: 9000,
+      actionLabel: 'Buka',
+      onAction: () => navigate('/transactions')
+    });
+    notifications.notify('Bukti pembayaran baru', {
+      body: `${evt.orderId} · ${description}`,
+      onClick: () => navigate('/transactions')
+    });
+  });
+
+  useRealtimeEvent(['transaction.approved', 'transaction.rejected'], (evt) => {
+    const isApprove = evt.type === 'transaction.approved';
+    if (isApprove) {
+      toast.success('Transaksi approved', { description: evt.orderId, duration: 4000 });
+    } else {
+      toast.warning('Transaksi rejected', { description: evt.orderId, duration: 4000 });
+    }
+  });
 
   return (
     <div className="min-h-screen bg-bg text-fg">
@@ -151,11 +192,38 @@ function Topbar({ onMenu, mobileOpen }) {
   const { theme, toggle } = useTheme();
   const { admin, logout } = useAuth();
   const navigate = useNavigate();
+  const { connected } = useRealtime();
+  const notifications = useDesktopNotifications();
+  const { toast } = useToast();
 
   async function handleLogout() {
     await logout();
     navigate('/login', { replace: true });
   }
+
+  async function handleNotificationsToggle() {
+    if (!notifications.supported) {
+      toast.warning('Browser ini tidak support desktop notifications.');
+      return;
+    }
+    if (notifications.permission === 'denied') {
+      toast.warning('Notifications diblokir', {
+        description: 'Aktifkan via setting browser di icon gembok URL bar.'
+      });
+      return;
+    }
+    const newState = await notifications.toggle();
+    if (newState) {
+      toast.success('Desktop notifications enabled');
+    } else {
+      toast.info('Desktop notifications disabled');
+    }
+  }
+
+  const notifIcon = !notifications.supported || notifications.permission === 'denied' || !notifications.enabled
+    ? BellOff
+    : Bell;
+  const NotifIcon = notifIcon;
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-surface/80 backdrop-blur supports-[backdrop-filter]:bg-surface/60">
@@ -170,6 +238,47 @@ function Topbar({ onMenu, mobileOpen }) {
         </button>
 
         <div className="flex-1" />
+
+        {/* Realtime connection indicator */}
+        <Tooltip
+          content={connected ? 'Realtime connected' : 'Realtime disconnected — reconnecting...'}
+          side="bottom"
+        >
+          <span
+            className={cn(
+              'inline-flex h-9 w-9 items-center justify-center rounded-lg',
+              connected ? 'text-success' : 'text-muted-fg'
+            )}
+            aria-label={connected ? 'Realtime connected' : 'Realtime disconnected'}
+          >
+            {connected ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+          </span>
+        </Tooltip>
+
+        <Tooltip
+          content={
+            !notifications.supported
+              ? 'Notifications not supported'
+              : notifications.permission === 'denied'
+              ? 'Notifications blocked by browser'
+              : notifications.enabled
+              ? 'Disable desktop notifications'
+              : 'Enable desktop notifications'
+          }
+          side="bottom"
+        >
+          <button
+            type="button"
+            onClick={handleNotificationsToggle}
+            className={cn(
+              'inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+              notifications.enabled ? 'text-primary' : 'text-fg-muted hover:text-fg'
+            )}
+            aria-label="Toggle notifications"
+          >
+            <NotifIcon className="h-5 w-5" />
+          </button>
+        </Tooltip>
 
         <button
           type="button"
