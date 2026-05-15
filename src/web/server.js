@@ -18,6 +18,7 @@ const buildBotRouter = require('./routes/bot');
 const buildEventsRouter = require('./routes/events');
 const buildBackupsRouter = require('./routes/backups');
 const buildIbRouter = require('./routes/ib');
+const buildIbPublicRouter = require('./routes/ibPublic');
 
 /**
  * Build the admin web Express app and mount it on a port.
@@ -79,6 +80,10 @@ function startWebServer({ getDiscordClient }) {
   app.use('/api/events', buildEventsRouter());
   app.use('/api/backups', buildBackupsRouter());
   app.use('/api/ib', buildIbRouter({ getDiscordClient }));
+
+  // Public IB registration routes (no admin auth — uses Discord OAuth2 for
+  // user identity instead). Mounted before the /api 404 fallthrough.
+  app.use('/api/ib-public', buildIbPublicRouter({ getDiscordClient }));
 
   // 404 for unknown /api/* requests so they don't fall through to the SPA
   app.use('/api', (req, res) => {
