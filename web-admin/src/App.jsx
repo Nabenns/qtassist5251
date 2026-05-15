@@ -14,6 +14,7 @@ import BotStatus from './pages/BotStatus.jsx';
 import Backups from './pages/Backups.jsx';
 import IbSettings from './pages/IbSettings.jsx';
 import IbAccounts from './pages/IbAccounts.jsx';
+import IbRegister from './pages/public/IbRegister.jsx';
 
 function FullPageMessage({ children }) {
   return (
@@ -61,6 +62,8 @@ export default function App() {
           </RedirectIfAuthed>
         }
       />
+      {/* Public IB registration page (Discord OAuth2 — no admin auth) */}
+      <Route path="/ib" element={<IbRegister />} />
       <Route path="/" element={<ProtectedShell><Dashboard /></ProtectedShell>} />
       <Route path="/transactions" element={<ProtectedShell><Transactions /></ProtectedShell>} />
       <Route path="/products" element={<ProtectedShell><Products /></ProtectedShell>} />
