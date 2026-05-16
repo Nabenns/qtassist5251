@@ -24,7 +24,7 @@ export function Tooltip({ content, children, side = 'top', align = 'center', cla
         align={align}
         sideOffset={6}
         className={cn(
-          'z-[70] rounded-md bg-fg/95 px-2 py-1 text-xs text-bg shadow-floating',
+          'z-[70] border border-border bg-surface-2 px-2 py-1 font-mono text-[11px] text-fg shadow-step',
           'animate-in',
           className
         )}
