@@ -10,6 +10,11 @@ export default {
       padding: '1rem'
     },
     extend: {
+      fontFamily: {
+        sans: ['"Space Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        display: ['"Space Grotesk"', 'sans-serif']
+      },
       // Semantic color tokens driven by CSS variables in index.css. Same key
       // names work in light + dark, only the variable values change.
       colors: {
@@ -40,14 +45,23 @@ export default {
         ring: 'rgb(var(--ring) / <alpha-value>)'
       },
       borderRadius: {
-        lg: '0.625rem',
-        xl: '0.875rem',
-        '2xl': '1.125rem'
+        none: '0',
+        sm: '0',
+        DEFAULT: '0',
+        md: '0',
+        lg: '0',
+        xl: '0',
+        '2xl': '0',
+        '3xl': '0',
+        full: '9999px'
       },
       boxShadow: {
         soft: '0 1px 2px rgb(0 0 0 / 0.04), 0 1px 3px rgb(0 0 0 / 0.06)',
         floating:
-          '0 4px 6px -1px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.10), 0 12px 24px -8px rgb(0 0 0 / 0.10)'
+          '0 4px 6px -1px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.10), 0 12px 24px -8px rgb(0 0 0 / 0.10)',
+        step: '4px 4px 0 rgb(var(--border))',
+        'step-lg': '6px 6px 0 rgb(var(--border))',
+        'step-primary': '4px 4px 0 rgb(var(--primary))'
       },
       keyframes: {
         in: {
