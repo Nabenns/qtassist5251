@@ -18,27 +18,27 @@ const variantConfig = {
   default: {
     icon: Info,
     accent: 'text-info',
-    ring: 'ring-info/40'
+    tile: 'bg-info text-info-fg'
   },
   success: {
     icon: CheckCircle2,
     accent: 'text-success',
-    ring: 'ring-success/40'
+    tile: 'bg-success text-success-fg'
   },
   error: {
     icon: XCircle,
     accent: 'text-danger',
-    ring: 'ring-danger/40'
+    tile: 'bg-danger text-danger-fg'
   },
   warning: {
     icon: AlertTriangle,
     accent: 'text-warning',
-    ring: 'ring-warning/40'
+    tile: 'bg-warning text-warning-fg'
   },
   info: {
     icon: Info,
     accent: 'text-info',
-    ring: 'ring-info/40'
+    tile: 'bg-info text-info-fg'
   }
 };
 
@@ -108,26 +108,36 @@ export function ToastProvider({ children }) {
 function ToastViewport({ toasts, dismiss }) {
   return (
     <div
-      className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-[min(95vw,22rem)] flex-col gap-2"
+      className="pointer-events-none fixed top-16 right-4 z-[60] flex w-[min(95vw,22rem)] flex-col gap-2"
       role="region"
       aria-label="Notifications"
     >
       {toasts.map((t) => {
         const cfg = variantConfig[t.variant] || variantConfig.default;
         const Icon = cfg.icon;
+        const toneLabel = t.variant === 'default' ? 'INFO' : t.variant.toUpperCase();
         return (
           <div
             key={t.id}
             role="status"
             className={cn(
-              'pointer-events-auto flex items-start gap-3 rounded-lg border border-border bg-surface px-3.5 py-3 shadow-floating ring-1',
-              cfg.ring,
+              'pointer-events-auto flex items-stretch gap-0 border border-border bg-surface shadow-step',
               'animate-in'
             )}
           >
-            <Icon className={cn('h-5 w-5 shrink-0 mt-0.5', cfg.accent)} aria-hidden="true" />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-fg">{t.title}</div>
+            <div
+              className={cn(
+                'flex w-10 shrink-0 items-center justify-center',
+                cfg.tile
+              )}
+            >
+              <Icon className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="flex-1 min-w-0 px-3 py-2.5">
+              <div className={cn('font-mono text-[9px] font-bold uppercase tracking-[0.15em]', cfg.accent)}>
+                {toneLabel}
+              </div>
+              <div className="text-sm font-semibold text-fg leading-tight mt-0.5">{t.title}</div>
               {t.description ? (
                 <div className="mt-0.5 text-xs text-muted-fg break-words">{t.description}</div>
               ) : null}
@@ -142,7 +152,7 @@ function ToastViewport({ toasts, dismiss }) {
                     }
                   }}
                   className={cn(
-                    'mt-2 inline-flex items-center text-xs font-medium hover:underline',
+                    'mt-2 inline-flex items-center font-mono text-[10px] font-bold uppercase tracking-wider hover:underline',
                     cfg.accent
                   )}
                 >
@@ -154,7 +164,7 @@ function ToastViewport({ toasts, dismiss }) {
               type="button"
               onClick={() => dismiss(t.id)}
               aria-label="Dismiss"
-              className="rounded-md p-1 text-muted-fg hover:bg-surface-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+              className="flex w-8 shrink-0 items-center justify-center text-muted-fg hover:bg-surface-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
             >
               <X className="h-4 w-4" />
             </button>
