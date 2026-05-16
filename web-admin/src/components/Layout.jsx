@@ -46,7 +46,10 @@ function getNavSections({ isAdmin }) {
     return [
       {
         label: 'Akun Saya',
-        items: [{ to: '/daftar-ib', label: 'Daftar IB', icon: IdCard, end: true }]
+        items: [
+          { to: '/daftar-ib', label: 'Daftar IB', icon: IdCard, end: true },
+          { to: '/my-email', label: 'Email Saya', icon: Mail }
+        ]
       }
     ];
   }
