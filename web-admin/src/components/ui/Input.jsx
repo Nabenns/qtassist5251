@@ -6,9 +6,10 @@ import { cn } from '../../lib/cn.js';
  * replacement for <input> + className="input".
  */
 export const Input = forwardRef(function Input(
-  { className, type = 'text', leadingIcon: Leading, trailingIcon: Trailing, ...props },
+  { className, type = 'text', leadingIcon: Leading, trailingIcon: Trailing, variant, ...props },
   ref
 ) {
+  const monoCls = variant === 'mono' ? 'font-mono tracking-wide' : '';
   if (Leading || Trailing) {
     return (
       <div className={cn('relative', className)}>
@@ -20,11 +21,7 @@ export const Input = forwardRef(function Input(
         <input
           ref={ref}
           type={type}
-          className={cn(
-            'input',
-            Leading && 'pl-9',
-            Trailing && 'pr-9'
-          )}
+          className={cn('input', monoCls, Leading && 'pl-9', Trailing && 'pr-9')}
           {...props}
         />
         {Trailing ? (
@@ -36,7 +33,7 @@ export const Input = forwardRef(function Input(
     );
   }
 
-  return <input ref={ref} type={type} className={cn('input', className)} {...props} />;
+  return <input ref={ref} type={type} className={cn('input', monoCls, className)} {...props} />;
 });
 
 export const Textarea = forwardRef(function Textarea({ className, rows = 4, ...props }, ref) {
@@ -60,15 +57,18 @@ export const Select = forwardRef(function Select({ className, children, ...props
 
 export function FormField({ label, hint, error, htmlFor, children, className }) {
   return (
-    <div className={cn('space-y-1', className)}>
+    <div className={cn('space-y-1.5', className)}>
       {label ? (
-        <label htmlFor={htmlFor} className="label">
+        <label
+          htmlFor={htmlFor}
+          className="block font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-muted-fg"
+        >
           {label}
         </label>
       ) : null}
       {children}
-      {hint && !error ? <p className="text-xs text-muted-fg">{hint}</p> : null}
-      {error ? <p className="text-xs text-danger">{error}</p> : null}
+      {hint && !error ? <p className="font-mono text-xs text-muted-fg">{hint}</p> : null}
+      {error ? <p className="font-mono text-xs text-danger">{error}</p> : null}
     </div>
   );
 }
