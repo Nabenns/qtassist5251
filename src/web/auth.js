@@ -1,8 +1,7 @@
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-const BCRYPT_ROUNDS = 10;
-const TOKEN_TTL = '24h';
+const TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+const ROLE_REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
@@ -22,36 +21,38 @@ function isProduction() {
   return process.env.NODE_ENV === 'production';
 }
 
-async function hashPassword(plain) {
-  return bcrypt.hash(plain, BCRYPT_ROUNDS);
-}
-
-async function verifyPassword(plain, hash) {
-  if (!hash) return false;
-  return bcrypt.compare(plain, hash);
-}
-
-function signToken(payload) {
-  return jwt.sign(payload, getJwtSecret(), { expiresIn: TOKEN_TTL });
+/**
+ * Sign a session token for a logged-in dashboard user.
+ *
+ * The payload carries identifying info plus a snapshot of the admin
+ * flag at sign time. Middleware checks `roleSyncedAt` to decide whether
+ * to refresh from Discord on each request.
+ */
+function signSessionToken({ dashboardUserId, discordId, username, isAdmin }) {
+  const payload = {
+    dashboardUserId,
+    discordId,
+    username,
+    isAdmin: Boolean(isAdmin),
+    roleSyncedAt: Date.now()
+  };
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: TOKEN_TTL_SECONDS });
 }
 
 function verifyToken(token) {
   try {
     return jwt.verify(token, getJwtSecret());
-  } catch (error) {
+  } catch (_) {
     return null;
   }
 }
 
-/**
- * Set the auth cookie on the response.
- */
 function setAuthCookie(res, token) {
   res.cookie(getCookieName(), token, {
     httpOnly: true,
     secure: isProduction(),
-    sameSite: 'strict',
-    maxAge: 24 * 60 * 60 * 1000 // 24h
+    sameSite: 'lax',
+    maxAge: TOKEN_TTL_SECONDS * 1000
   });
 }
 
@@ -59,7 +60,7 @@ function clearAuthCookie(res) {
   res.clearCookie(getCookieName(), {
     httpOnly: true,
     secure: isProduction(),
-    sameSite: 'strict'
+    sameSite: 'lax'
   });
 }
 
@@ -67,12 +68,51 @@ function readAuthCookie(req) {
   return req.cookies && req.cookies[getCookieName()];
 }
 
+/**
+ * Generate / read a CSRF-style state cookie for the OAuth2 round-trip.
+ * Discord echoes our `state` parameter back; we compare it to the cookie
+ * value to make sure the callback originated from a flow we initiated.
+ */
+const OAUTH_STATE_COOKIE = 'qtassist_oauth_state';
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+function setOAuthStateCookie(res, state, returnTo) {
+  const value = JSON.stringify({ state, returnTo: returnTo || '/' });
+  res.cookie(OAUTH_STATE_COOKIE, value, {
+    httpOnly: true,
+    secure: isProduction(),
+    sameSite: 'lax',
+    maxAge: OAUTH_STATE_TTL_MS
+  });
+}
+
+function readOAuthStateCookie(req) {
+  const raw = req.cookies && req.cookies[OAUTH_STATE_COOKIE];
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (_) {
+    return null;
+  }
+}
+
+function clearOAuthStateCookie(res) {
+  res.clearCookie(OAUTH_STATE_COOKIE, {
+    httpOnly: true,
+    secure: isProduction(),
+    sameSite: 'lax'
+  });
+}
+
 module.exports = {
-  hashPassword,
-  verifyPassword,
-  signToken,
+  signSessionToken,
   verifyToken,
   setAuthCookie,
   clearAuthCookie,
-  readAuthCookie
+  readAuthCookie,
+  setOAuthStateCookie,
+  readOAuthStateCookie,
+  clearOAuthStateCookie,
+  ROLE_REFRESH_INTERVAL_MS,
+  TOKEN_TTL_SECONDS
 };

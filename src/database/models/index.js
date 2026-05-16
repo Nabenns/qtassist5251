@@ -6,6 +6,8 @@ const Transaction = require('./Transaction');
 const EmailBinding = require('./EmailBinding');
 const DriveConfig = require('./DriveConfig');
 const AdminUser = require('./AdminUser');
+const DashboardUser = require('./DashboardUser');
+const AdminRole = require('./AdminRole');
 const IbConfig = require('./IbConfig');
 const IbAccount = require('./IbAccount');
 const IbVolumeRecord = require('./IbVolumeRecord');
@@ -38,6 +40,8 @@ module.exports = {
   EmailBinding,
   DriveConfig,
   AdminUser,
+  DashboardUser,
+  AdminRole,
   IbConfig,
   IbAccount,
   IbVolumeRecord,

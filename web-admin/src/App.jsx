@@ -14,6 +14,8 @@ import BotStatus from './pages/BotStatus.jsx';
 import Backups from './pages/Backups.jsx';
 import IbSettings from './pages/IbSettings.jsx';
 import IbAccounts from './pages/IbAccounts.jsx';
+import AdminRoles from './pages/AdminRoles.jsx';
+import DaftarIb from './pages/DaftarIb.jsx';
 
 function FullPageMessage({ children }) {
   return (
@@ -23,6 +25,9 @@ function FullPageMessage({ children }) {
   );
 }
 
+/**
+ * Require any logged-in user. Renders children inside Layout.
+ */
 function RequireAuth({ children }) {
   const { status } = useAuth();
   const location = useLocation();
@@ -35,19 +40,55 @@ function RequireAuth({ children }) {
   return children;
 }
 
-function RedirectIfAuthed({ children }) {
-  const { status } = useAuth();
-  if (status === 'loading') return <FullPageMessage>Loading...</FullPageMessage>;
-  if (status === 'authenticated') return <Navigate to="/" replace />;
+/**
+ * Require admin status. Logged-in non-admins are bounced to /daftar-ib.
+ */
+function RequireAdmin({ children }) {
+  const { status, isAdmin } = useAuth();
+  const location = useLocation();
+  if (status === 'loading') {
+    return <FullPageMessage>Loading...</FullPageMessage>;
+  }
+  if (status !== 'authenticated') {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+  if (!isAdmin) {
+    return <Navigate to="/daftar-ib" replace />;
+  }
   return children;
 }
 
-function ProtectedShell({ children }) {
+function RedirectIfAuthed({ children }) {
+  const { status, isAdmin } = useAuth();
+  if (status === 'loading') return <FullPageMessage>Loading...</FullPageMessage>;
+  if (status === 'authenticated') {
+    return <Navigate to={isAdmin ? '/' : '/daftar-ib'} replace />;
+  }
+  return children;
+}
+
+function AdminShell({ children }) {
+  return (
+    <RequireAdmin>
+      <Layout>{children}</Layout>
+    </RequireAdmin>
+  );
+}
+
+function UserShell({ children }) {
   return (
     <RequireAuth>
       <Layout>{children}</Layout>
     </RequireAuth>
   );
+}
+
+/**
+ * Index route: send admins to the dashboard, users to /daftar-ib.
+ */
+function Home() {
+  const { isAdmin } = useAuth();
+  return isAdmin ? <Dashboard /> : <Navigate to="/daftar-ib" replace />;
 }
 
 export default function App() {
@@ -61,19 +102,26 @@ export default function App() {
           </RedirectIfAuthed>
         }
       />
-      <Route path="/" element={<ProtectedShell><Dashboard /></ProtectedShell>} />
-      <Route path="/transactions" element={<ProtectedShell><Transactions /></ProtectedShell>} />
-      <Route path="/products" element={<ProtectedShell><Products /></ProtectedShell>} />
-      <Route path="/temproles" element={<ProtectedShell><TempRoles /></ProtectedShell>} />
-      <Route path="/emails" element={<ProtectedShell><Emails /></ProtectedShell>} />
-      <Route path="/users" element={<ProtectedShell><UserLookup /></ProtectedShell>} />
-      <Route path="/users/:userId" element={<ProtectedShell><UserLookup /></ProtectedShell>} />
-      <Route path="/audit" element={<ProtectedShell><AuditLog /></ProtectedShell>} />
-      <Route path="/discord-post" element={<ProtectedShell><DiscordPost /></ProtectedShell>} />
-      <Route path="/bot-status" element={<ProtectedShell><BotStatus /></ProtectedShell>} />
-      <Route path="/backups" element={<ProtectedShell><Backups /></ProtectedShell>} />
-      <Route path="/ib-settings" element={<ProtectedShell><IbSettings /></ProtectedShell>} />
-      <Route path="/ib-accounts" element={<ProtectedShell><IbAccounts /></ProtectedShell>} />
+
+      {/* User-accessible route (admin can also see it) */}
+      <Route path="/daftar-ib" element={<UserShell><DaftarIb /></UserShell>} />
+
+      {/* Admin-only routes */}
+      <Route path="/" element={<AdminShell><Home /></AdminShell>} />
+      <Route path="/transactions" element={<AdminShell><Transactions /></AdminShell>} />
+      <Route path="/products" element={<AdminShell><Products /></AdminShell>} />
+      <Route path="/temproles" element={<AdminShell><TempRoles /></AdminShell>} />
+      <Route path="/emails" element={<AdminShell><Emails /></AdminShell>} />
+      <Route path="/users" element={<AdminShell><UserLookup /></AdminShell>} />
+      <Route path="/users/:userId" element={<AdminShell><UserLookup /></AdminShell>} />
+      <Route path="/audit" element={<AdminShell><AuditLog /></AdminShell>} />
+      <Route path="/discord-post" element={<AdminShell><DiscordPost /></AdminShell>} />
+      <Route path="/bot-status" element={<AdminShell><BotStatus /></AdminShell>} />
+      <Route path="/backups" element={<AdminShell><Backups /></AdminShell>} />
+      <Route path="/ib-settings" element={<AdminShell><IbSettings /></AdminShell>} />
+      <Route path="/ib-accounts" element={<AdminShell><IbAccounts /></AdminShell>} />
+      <Route path="/admin-roles" element={<AdminShell><AdminRoles /></AdminShell>} />
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

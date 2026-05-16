@@ -1,11 +1,11 @@
 const express = require('express');
 const { Op, fn, col, literal } = require('sequelize');
 const { sequelize, Transaction, Product, TemporaryRole } = require('../../database/models');
-const { requireAuth } = require('../middleware');
+const { requireAdmin } = require('../middleware');
 
 const router = express.Router();
 
-router.use(requireAuth);
+router.use(requireAdmin);
 
 router.get('/', async (req, res) => {
   try {

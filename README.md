@@ -131,6 +131,34 @@ npm run dev
    - Embed Links
 9. Use generated URL to invite bot to your server
 
+### Discord OAuth (Login Dashboard)
+Login dashboard sekarang full Discord OAuth, bukan username/password.
+
+1. Di Developer Portal, buka aplikasi yang sama
+2. OAuth2 > General:
+   - Copy `Client ID` ke `.env` sebagai `DISCORD_CLIENT_ID`
+   - Reset & copy `Client Secret` ke `.env` sebagai `DISCORD_CLIENT_SECRET`
+3. OAuth2 > Redirects > Add Redirect:
+   - Format: `${DASHBOARD_BASE_URL}/api/auth/discord/callback`
+   - Contoh production: `https://qtrades.bensserver.cloud/api/auth/discord/callback`
+   - Contoh dev: `http://localhost:3000/api/auth/discord/callback`
+4. Set `DASHBOARD_BASE_URL` di `.env` sesuai base URL dashboard kamu
+5. Generate `JWT_SECRET` (min 32 char):
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+   ```
+
+#### Akses Admin
+- **Bootstrap (sekali aja):** Saat tabel `admin_roles` masih kosong, siapapun yang punya permission Discord ADMINISTRATOR di guild bisa akses dashboard admin sebagai bootstrap
+- **Setelah ada role admin di tabel:** Hanya user dengan role-role yang terdaftar yang bisa akses dashboard admin
+- **Manage role admin:** Login sebagai admin → menu "Pengaturan Admin" → tambah/hapus role Discord
+- **Refresh role:** Cached snapshot role di-refresh dari Discord setiap 1 jam (atau setiap login ulang)
+
+#### Flow user
+- User non-admin login → otomatis diarahkan ke `/daftar-ib` untuk submit nomor akun broker IB
+- User admin login → masuk ke dashboard admin penuh, juga bisa akses `/daftar-ib`
+- User yang belum di guild Discord atau bot offline saat login pertama kali akan dapat error `bot_not_ready`
+
 ### PostgreSQL Setup
 1. Install PostgreSQL
 2. Create database:
@@ -313,8 +341,11 @@ Lihat [.env.example](.env.example) untuk template lengkap.
 **Required:**
 - `DISCORD_TOKEN` - Bot token dari Discord Developer Portal
 - `DISCORD_CLIENT_ID` - Application ID
+- `DISCORD_CLIENT_SECRET` - OAuth2 client secret (untuk login dashboard)
 - `DISCORD_GUILD_ID` - Server ID untuk testing
+- `DASHBOARD_BASE_URL` - Base URL dashboard, contoh `https://qtrades.bensserver.cloud`. Discord redirect URI = `${DASHBOARD_BASE_URL}/api/auth/discord/callback`
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` - PostgreSQL config
+- `JWT_SECRET` - Min 32 karakter, untuk sign session token
 - `PAYMENT_REVIEW_CHANNEL_ID` - Channel untuk admin review payment
 - `PAYMENT_UPLOAD_CHANNEL_ID` - Channel untuk user upload bukti
 - `BANK_NAMES`, `ACCOUNT_NUMBERS`, `ACCOUNT_HOLDERS` - Bank account details (pipe-separated)

@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAuth } = require('../middleware');
+const { requireAdmin } = require('../middleware');
 const {
   createBackup,
   listBackups,
@@ -15,7 +15,7 @@ const RESTORE_FILE_LIMIT = 200 * 1024 * 1024; // 200 MB upper bound for safety
 
 function buildRouter() {
   const router = express.Router();
-  router.use(requireAuth);
+  router.use(requireAdmin);
 
   router.get('/', async (req, res) => {
     try {

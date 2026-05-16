@@ -3,19 +3,36 @@ import { api, ApiError } from './api.js';
 
 const AuthContext = createContext(null);
 
+/**
+ * Auth context for the dashboard.
+ *
+ * Identity comes entirely from Discord OAuth. The flow:
+ *   1. User clicks "Login with Discord" → browser hits `/api/auth/discord/login`
+ *      which 302s to discord.com/oauth2/authorize.
+ *   2. Discord redirects back to `/api/auth/discord/callback?code=...` which
+ *      sets the session cookie and 302s into the SPA.
+ *   3. SPA boots, calls `/api/auth/me` to discover the current user.
+ *
+ * We expose:
+ *   - `status`        : 'loading' | 'unauthenticated' | 'authenticated'
+ *   - `user`          : { id, discordId, username, isAdmin, ... } | null
+ *   - `loginWithDiscord(returnTo?)` : redirects browser to backend login URL
+ *   - `logout()`                    : clears cookie + flips state
+ *   - `refresh()`                   : re-fetch /api/auth/me
+ */
 export function AuthProvider({ children }) {
-  const [admin, setAdmin] = useState(null);
-  const [status, setStatus] = useState('loading'); // 'loading' | 'unauthenticated' | 'authenticated'
+  const [user, setUser] = useState(null);
+  const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
 
   const refresh = useCallback(async () => {
     try {
       const data = await api.get('/api/auth/me');
-      setAdmin(data.admin);
+      setUser(data.user);
       setStatus('authenticated');
       setError(null);
     } catch (err) {
-      setAdmin(null);
+      setUser(null);
       if (err instanceof ApiError && err.status === 401) {
         setStatus('unauthenticated');
       } else {
@@ -29,27 +46,30 @@ export function AuthProvider({ children }) {
     refresh();
   }, [refresh]);
 
-  const login = useCallback(
-    async (username, password) => {
-      const data = await api.post('/api/auth/login', { username, password });
-      setAdmin(data.admin);
-      setStatus('authenticated');
-      setError(null);
-      return data.admin;
-    },
-    []
-  );
+  const loginWithDiscord = useCallback((returnTo = null) => {
+    const target = returnTo || window.location.pathname + window.location.search;
+    const url = `/api/auth/discord/login?returnTo=${encodeURIComponent(target)}`;
+    window.location.assign(url);
+  }, []);
 
   const logout = useCallback(async () => {
     try {
       await api.post('/api/auth/logout');
     } finally {
-      setAdmin(null);
+      setUser(null);
       setStatus('unauthenticated');
     }
   }, []);
 
-  const value = { admin, status, error, login, logout, refresh };
+  const value = {
+    user,
+    status,
+    error,
+    isAdmin: Boolean(user?.isAdmin),
+    loginWithDiscord,
+    logout,
+    refresh
+  };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

@@ -18,6 +18,9 @@ const buildBotRouter = require('./routes/bot');
 const buildEventsRouter = require('./routes/events');
 const buildBackupsRouter = require('./routes/backups');
 const buildIbRouter = require('./routes/ib');
+const buildAdminRolesRouter = require('./routes/adminRoles');
+
+const { setDiscordClientAccessor } = require('../services/discordRoleSync');
 
 /**
  * Build the admin web Express app and mount it on a port.
@@ -34,6 +37,10 @@ function startWebServer({ getDiscordClient }) {
   const isProd = process.env.NODE_ENV === 'production';
   const processStartedAt = Date.now();
   const getProcessStartedAt = () => processStartedAt;
+
+  // Wire the role-sync service so middleware can reach the live bot
+  // client when checking admin role membership.
+  setDiscordClientAccessor(getDiscordClient);
 
   // Trust the reverse proxy (nginx) for correct client IP and protocol.
   app.set('trust proxy', 1);
@@ -79,6 +86,7 @@ function startWebServer({ getDiscordClient }) {
   app.use('/api/events', buildEventsRouter());
   app.use('/api/backups', buildBackupsRouter());
   app.use('/api/ib', buildIbRouter({ getDiscordClient }));
+  app.use('/api/admin-roles', buildAdminRolesRouter({ getDiscordClient }));
 
   // 404 for unknown /api/* requests so they don't fall through to the SPA
   app.use('/api', (req, res) => {

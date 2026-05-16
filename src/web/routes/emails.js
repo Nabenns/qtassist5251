@@ -1,10 +1,10 @@
 const express = require('express');
 const { EmailBinding } = require('../../database/models');
-const { requireAuth } = require('../middleware');
+const { requireAdmin } = require('../middleware');
 
 const router = express.Router();
 
-router.use(requireAuth);
+router.use(requireAdmin);
 
 router.get('/', async (req, res) => {
   try {

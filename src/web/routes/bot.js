@@ -3,7 +3,7 @@ const os = require('os');
 const { Op } = require('sequelize');
 const { sequelize, AdminUser, Transaction, TemporaryRole } = require('../../database/models');
 const { getCronStatus } = require('../../services/cronStatus');
-const { requireAuth } = require('../middleware');
+const { requireAdmin } = require('../middleware');
 
 /**
  * GET /api/bot/status
@@ -13,7 +13,7 @@ const { requireAuth } = require('../middleware');
 
 function buildRouter({ getDiscordClient, getProcessStartedAt }) {
   const router = express.Router();
-  router.use(requireAuth);
+  router.use(requireAdmin);
 
   router.get('/status', async (req, res) => {
     try {

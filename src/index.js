@@ -8,7 +8,6 @@ const { initDatabase } = require('./database/models');
 const { startCronJobs } = require('./services/cronService');
 const { initializeSheets, syncActiveUsersToSheets } = require('./services/googleSheetsService');
 const { startWebServer } = require('./web/server');
-const { seedAdmin } = require('./web/seedAdmin');
 
 // Create Discord client
 const client = new Client({
@@ -92,9 +91,6 @@ async function init() {
 
     // Initialize Google Sheets
     await initializeSheets();
-
-    // Seed admin user (no-op if already exists or env not configured)
-    await seedAdmin();
 
     // Start admin web server (independent of Discord login so the dashboard
     // is reachable even if the gateway is having issues)

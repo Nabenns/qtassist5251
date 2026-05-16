@@ -1,11 +1,11 @@
 const express = require('express');
 const { parseDuration } = require('../../utils/parseDuration');
 const { Product } = require('../../database/models');
-const { requireAuth } = require('../middleware');
+const { requireAdmin } = require('../middleware');
 
 function buildRouter({ getDiscordClient }) {
   const router = express.Router();
-  router.use(requireAuth);
+  router.use(requireAdmin);
 
   router.get('/', async (req, res) => {
     try {

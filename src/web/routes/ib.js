@@ -2,7 +2,7 @@ const express = require('express');
 const { Op } = require('sequelize');
 const { IbConfig, IbAccount, IbVolumeRecord } = require('../../database/models');
 const { encryptString, decryptString, maskSecret } = require('../../utils/secrets');
-const { requireAuth } = require('../middleware');
+const { requireAuth, requireAdmin } = require('../middleware');
 const valetax = require('../../services/valetaxService');
 const ibService = require('../../services/ibService');
 
@@ -25,7 +25,158 @@ const ibService = require('../../services/ibService');
 
 function buildRouter({ getDiscordClient }) {
   const router = express.Router();
-  router.use(requireAuth);
+
+  /* ────────────────────────────────────────────────────────────────────
+   * User-facing routes (any logged-in dashboard user, admin or not).
+   *
+   * These power the /daftar-ib SPA page so non-admin Discord users can
+   * submit their broker account number and see verification status
+   * without touching admin endpoints below.
+   * ──────────────────────────────────────────────────────────────────── */
+
+  router.get('/my-account', requireAuth, async (req, res) => {
+    try {
+      const serverId = String(process.env.DISCORD_GUILD_ID || '');
+      if (!serverId) return res.status(400).json({ error: 'missing_server_id' });
+
+      const config = await IbConfig.findOne({ where: { serverId } });
+      const account = await IbAccount.findOne({
+        where: { serverId, userId: req.session.discordId },
+        order: [['updatedAt', 'DESC']]
+      });
+
+      return res.json({
+        config: config
+          ? {
+              enabled: Boolean(config.enabled),
+              ibLink: config.ibLink || null,
+              minDepositUsd: Number(config.minDepositUsd) || 0,
+              minDailyVolumeLots: Number(config.minDailyVolumeLots) || 0,
+              volumeCheckEnabled: Boolean(config.volumeCheckEnabled),
+              volumeGraceDays: config.volumeGraceDays
+            }
+          : null,
+        account: account ? serializeAccount(account) : null
+      });
+    } catch (error) {
+      console.error('GET /api/ib/my-account error:', error);
+      return res.status(500).json({ error: 'internal_error', message: error.message });
+    }
+  });
+
+  router.post('/my-account', requireAuth, async (req, res) => {
+    try {
+      const serverId = String(process.env.DISCORD_GUILD_ID || '');
+      if (!serverId) return res.status(400).json({ error: 'missing_server_id' });
+
+      const accountNumber = String(req.body?.brokerAccountNumber || '').trim();
+      if (!accountNumber) {
+        return res.status(400).json({
+          error: 'missing_account_number',
+          message: 'Nomor akun broker wajib diisi.'
+        });
+      }
+      // Account numbers from MT5 / Valetax are numeric and short. Reject
+      // obviously bad input early so we don't queue garbage.
+      if (!/^[A-Za-z0-9_-]{3,32}$/.test(accountNumber)) {
+        return res.status(400).json({
+          error: 'invalid_account_number',
+          message: 'Nomor akun tidak valid.'
+        });
+      }
+
+      const client = getDiscordClient();
+
+      // Prevent the same broker account from being claimed by two
+      // different Discord users while it is still in active use.
+      const conflict = await IbAccount.findOne({
+        where: {
+          serverId,
+          brokerAccountNumber: accountNumber,
+          userId: { [Op.ne]: req.session.discordId }
+        }
+      });
+      if (conflict && conflict.status !== 'failed' && conflict.status !== 'removed') {
+        return res.status(409).json({
+          error: 'account_taken',
+          message: 'Nomor akun ini sudah dipakai user lain.'
+        });
+      }
+
+      const result = await ibService.submitAccount({
+        serverId,
+        userId: req.session.discordId,
+        brokerAccountNumber: accountNumber
+      });
+
+      // For new / reset submissions, kick off an immediate verification
+      // attempt so the user gets fast feedback instead of waiting for the
+      // cron tick. Errors here are fine — the row is already queued.
+      if (!result.alreadyVerified && !result.alreadyPending) {
+        try {
+          const config = await IbConfig.findOne({ where: { serverId } });
+          if (config && config.enabled) {
+            await ibService.runVerification({
+              account: result.account,
+              config,
+              discordClient: client,
+              source: 'manual'
+            });
+            await result.account.reload();
+          }
+        } catch (verifyErr) {
+          console.error('Inline verification failed (queued for retry):', verifyErr);
+        }
+      }
+
+      return res.json({
+        ok: true,
+        alreadyVerified: result.alreadyVerified,
+        alreadyPending: result.alreadyPending,
+        account: serializeAccount(result.account)
+      });
+    } catch (error) {
+      console.error('POST /api/ib/my-account error:', error);
+      return res.status(400).json({
+        error: 'submit_failed',
+        message: error.message || 'Gagal menyimpan akun.'
+      });
+    }
+  });
+
+  router.post('/my-account/reverify', requireAuth, async (req, res) => {
+    try {
+      const serverId = String(process.env.DISCORD_GUILD_ID || '');
+      const account = await IbAccount.findOne({
+        where: { serverId, userId: req.session.discordId },
+        order: [['updatedAt', 'DESC']]
+      });
+      if (!account) return res.status(404).json({ error: 'no_account' });
+
+      // Don't let users hammer the broker. Limit to once per minute.
+      const lastChecked = account.lastCheckedAt ? new Date(account.lastCheckedAt) : null;
+      if (lastChecked && Date.now() - lastChecked.getTime() < 60 * 1000) {
+        return res.status(429).json({
+          error: 'too_soon',
+          message: 'Tunggu sebentar sebelum cek lagi.'
+        });
+      }
+
+      const client = getDiscordClient();
+      const result = await ibService.reVerifyAccount({ account, discordClient: client });
+      await account.reload();
+      return res.json({ ok: true, result, account: serializeAccount(account) });
+    } catch (error) {
+      console.error('POST /api/ib/my-account/reverify error:', error);
+      return res.status(500).json({ error: 'internal_error', message: error.message });
+    }
+  });
+
+  /* ────────────────────────────────────────────────────────────────────
+   * Admin routes — everything below requires admin role.
+   * ──────────────────────────────────────────────────────────────────── */
+
+  router.use(requireAdmin);
 
   /* ────────────────────────────────────────────────────────────────────
    * Config

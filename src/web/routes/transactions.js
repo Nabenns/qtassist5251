@@ -1,7 +1,7 @@
 const express = require('express');
 const { Op } = require('sequelize');
 const { Transaction, Product } = require('../../database/models');
-const { requireAuth } = require('../middleware');
+const { requireAdmin } = require('../middleware');
 const {
   approveTransaction,
   rejectTransaction
@@ -10,7 +10,7 @@ const {
 function buildRouter({ getDiscordClient }) {
   const router = express.Router();
 
-  router.use(requireAuth);
+  router.use(requireAdmin);
 
   router.get('/', async (req, res) => {
     try {

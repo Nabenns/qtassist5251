@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAuth } = require('../middleware');
+const { requireAdmin } = require('../middleware');
 const {
   postShop,
   postMyInfo,
@@ -16,7 +16,7 @@ const {
 
 function buildRouter({ getDiscordClient }) {
   const router = express.Router();
-  router.use(requireAuth);
+  router.use(requireAdmin);
 
   function client(res) {
     const c = getDiscordClient();

@@ -1,6 +1,6 @@
 const express = require('express');
 const { ChannelType } = require('discord.js');
-const { requireAuth } = require('../middleware');
+const { requireAdmin } = require('../middleware');
 
 /**
  * Discord helper endpoints for the dashboard.
@@ -13,7 +13,7 @@ const { requireAuth } = require('../middleware');
 
 function buildRouter({ getDiscordClient }) {
   const router = express.Router();
-  router.use(requireAuth);
+  router.use(requireAdmin);
 
   /**
    * Helper: resolve a Discord client or 503.

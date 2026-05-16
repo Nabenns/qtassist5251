@@ -2,12 +2,12 @@ const express = require('express');
 const { Op } = require('sequelize');
 const { TemporaryRole, ModerationLog } = require('../../database/models');
 const { parseDuration } = require('../../utils/parseDuration');
-const { requireAuth } = require('../middleware');
+const { requireAdmin } = require('../middleware');
 
 function buildRouter({ getDiscordClient }) {
   const router = express.Router();
 
-  router.use(requireAuth);
+  router.use(requireAdmin);
 
   router.get('/', async (req, res) => {
     try {

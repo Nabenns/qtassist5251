@@ -37,3 +37,5 @@ ngrok
 ngrok.exe
 ngrok.zip
 *.exe
+
+.superpowers/
