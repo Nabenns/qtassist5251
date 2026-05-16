@@ -34,7 +34,7 @@ export function DataTable({ className, children, scrollable = true }) {
 
 export function THead({ className, children }) {
   return (
-    <thead className={cn('bg-surface-2', className)}>
+    <thead className={cn('bg-surface-2 border-b-2 border-border', className)}>
       {children}
     </thead>
   );
@@ -46,7 +46,10 @@ export function TBody({ className, children }) {
 
 export function TR({ className, children, ...props }) {
   return (
-    <tr className={cn('hover:bg-surface-2/60 transition-colors', className)} {...props}>
+    <tr
+      className={cn('hover:bg-surface-2 transition-colors duration-75', className)}
+      {...props}
+    >
       {children}
     </tr>
   );
@@ -56,7 +59,7 @@ export function TH({ className, children, align = 'left', ...props }) {
   return (
     <th
       className={cn(
-        'px-5 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-fg',
+        'px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-muted-fg',
         align === 'right' && 'text-right',
         align === 'center' && 'text-center',
         align === 'left' && 'text-left',
@@ -73,7 +76,7 @@ export function TD({ className, children, align = 'left', ...props }) {
   return (
     <td
       className={cn(
-        'px-5 py-2.5 align-middle text-fg',
+        'px-4 py-2.5 align-middle text-fg text-sm',
         align === 'right' && 'text-right',
         align === 'center' && 'text-center',
         align === 'left' && 'text-left',
