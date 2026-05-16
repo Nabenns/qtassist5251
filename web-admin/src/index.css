@@ -1,3 +1,11 @@
+@import '@fontsource/space-grotesk/300.css';
+@import '@fontsource/space-grotesk/500.css';
+@import '@fontsource/space-grotesk/600.css';
+@import '@fontsource/space-grotesk/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/700.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -48,37 +56,37 @@
   }
 
   .dark {
-    --bg: 11 13 18;             /* near-black with slight blue */
-    --surface: 18 21 28;
-    --surface-2: 22 26 34;
-    --surface-3: 28 33 43;
-    --border: 39 45 58;
-    --muted: 30 35 46;
-    --muted-fg: 148 163 184;    /* slate-400 */
-    --fg: 226 232 240;          /* slate-200 */
-    --fg-muted: 148 163 184;    /* slate-400 */
+    --bg: 8 22 28;              /* #08161c — dark navy from QTrades logo */
+    --surface: 13 35 41;         /* #0d2329 */
+    --surface-2: 20 48 55;       /* #143037 */
+    --surface-3: 26 58 64;       /* #1a3a40 */
+    --border: 31 65 71;          /* #1f4147 */
+    --muted: 13 35 41;           /* #0d2329 */
+    --muted-fg: 126 182 180;     /* #7eb6b4 */
+    --fg: 232 244 241;           /* #e8f4f1 */
+    --fg-muted: 90 115 120;      /* #5a7378 */
 
-    --primary: 129 140 248;     /* indigo-400 — brighter for dark bg */
-    --primary-fg: 17 24 39;
-    --primary-soft: 30 27 75;
+    --primary: 45 212 191;       /* #2dd4bf — QTrades teal */
+    --primary-fg: 8 22 28;       /* navy on teal */
+    --primary-soft: 10 53 48;    /* #0a3530 */
 
-    --success: 74 222 128;      /* emerald-400 */
-    --success-fg: 6 24 18;
-    --success-soft: 6 78 59;
+    --success: 127 255 170;      /* #7fffaa */
+    --success-fg: 8 22 28;
+    --success-soft: 10 58 26;    /* #0a3a1a */
 
-    --warning: 250 204 21;
-    --warning-fg: 19 16 4;
-    --warning-soft: 87 60 14;
+    --warning: 250 204 21;       /* #facc15 */
+    --warning-fg: 8 22 28;
+    --warning-soft: 58 45 5;     /* #3a2d05 */
 
-    --danger: 248 113 113;
-    --danger-fg: 23 8 9;
-    --danger-soft: 91 22 22;
+    --danger: 255 107 107;       /* #ff6b6b */
+    --danger-fg: 8 22 28;
+    --danger-soft: 58 26 26;     /* #3a1a1a */
 
-    --info: 96 165 250;
-    --info-fg: 9 16 32;
-    --info-soft: 23 47 89;
+    --info: 96 165 250;          /* #60a5fa */
+    --info-fg: 8 22 28;
+    --info-soft: 10 37 64;       /* #0a2540 */
 
-    --ring: 129 140 248;
+    --ring: 45 212 191;          /* same as primary */
 
     color-scheme: dark;
   }
@@ -88,7 +96,7 @@
   }
   body {
     @apply bg-bg text-fg antialiased;
-    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   }
 
   /* Native form controls picking up the right theme */
@@ -123,7 +131,7 @@
   :focus-visible {
     outline: 2px solid rgb(var(--ring));
     outline-offset: 2px;
-    border-radius: 6px;
+    border-radius: 0;
   }
 
   /* Reduce motion for users who request it */
@@ -142,11 +150,12 @@
 
 @layer components {
   .surface {
-    @apply rounded-xl bg-surface border border-border shadow-soft;
+    @apply rounded-none bg-surface border border-border;
+    box-shadow: 4px 4px 0 rgb(var(--border));
   }
 
   .input {
-    @apply block w-full rounded-lg border border-border bg-surface text-fg placeholder:text-muted-fg/70
+    @apply block w-full rounded-none border border-border bg-surface text-fg placeholder:text-muted-fg/70
       px-3 py-2 text-sm shadow-sm transition
       focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40
       disabled:opacity-50 disabled:cursor-not-allowed;
@@ -157,7 +166,7 @@
   }
 
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded-none px-2 py-0.5 text-xs font-medium;
   }
 
   /* Skeleton shimmer for loading states */
