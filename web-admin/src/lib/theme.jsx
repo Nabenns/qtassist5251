@@ -5,17 +5,15 @@ const STORAGE_KEY = 'qtassist-theme';
 const ThemeContext = createContext(null);
 
 function readInitialTheme() {
-  if (typeof window === 'undefined') return 'light';
+  if (typeof window === 'undefined') return 'dark';
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored === 'light' || stored === 'dark') return stored;
   } catch (_) {
     // private mode etc.
   }
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
-  }
-  return 'light';
+  // Default to dark; light is an opt-in fallback until Phase 2.
+  return 'dark';
 }
 
 function applyTheme(theme) {
@@ -40,22 +38,8 @@ export function ThemeProvider({ children }) {
     }
   }, [theme]);
 
-  // Track OS-level theme changes only when the user has not explicitly
-  // chosen a theme (i.e. no value in storage yet).
-  useEffect(() => {
-    if (!window.matchMedia) return;
-    const mql = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e) => {
-      try {
-        if (window.localStorage.getItem(STORAGE_KEY)) return; // user pinned
-      } catch (_) {
-        // ignore
-      }
-      setTheme(e.matches ? 'dark' : 'light');
-    };
-    mql.addEventListener?.('change', handler);
-    return () => mql.removeEventListener?.('change', handler);
-  }, []);
+  // OS-level theme tracking disabled: the dashboard is dark-first.
+  // Users who want light flip the toggle, which we persist to localStorage.
 
   const toggle = useCallback(() => {
     setTheme((current) => (current === 'dark' ? 'light' : 'dark'));

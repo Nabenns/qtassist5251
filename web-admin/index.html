@@ -11,8 +11,8 @@
       (function () {
         try {
           var stored = localStorage.getItem('qtassist-theme');
-          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var theme = stored === 'light' || stored === 'dark' ? stored : (prefersDark ? 'dark' : 'light');
+          // Default to dark; light is opt-in via toggle.
+          var theme = stored === 'light' ? 'light' : 'dark';
           if (theme === 'dark') document.documentElement.classList.add('dark');
           var meta = document.querySelector('meta[name="theme-color"]');
           if (!meta) {
@@ -20,7 +20,7 @@
             meta.setAttribute('name', 'theme-color');
             document.head.appendChild(meta);
           }
-          meta.setAttribute('content', theme === 'dark' ? '#0b0d12' : '#f8fafc');
+          meta.setAttribute('content', theme === 'dark' ? '#08161c' : '#fafaf6');
         } catch (_) {}
       })();
     </script>
