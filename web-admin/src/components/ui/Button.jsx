@@ -11,24 +11,24 @@ import { cn } from '../../lib/cn.js';
 
 const variantStyles = {
   primary:
-    'bg-primary text-primary-fg hover:bg-primary/90 active:bg-primary/80 shadow-sm',
+    'bg-primary text-primary-fg hover:bg-success hover:text-success-fg active:bg-primary/80 border border-primary',
   secondary:
-    'bg-surface text-fg ring-1 ring-inset ring-border hover:bg-surface-2 active:bg-surface-3',
+    'bg-surface-2 text-fg border border-border hover:bg-surface-3 active:bg-surface-3',
   ghost:
     'bg-transparent text-fg-muted hover:bg-surface-2 hover:text-fg',
   outline:
-    'bg-transparent text-fg ring-1 ring-inset ring-border hover:bg-surface-2',
+    'bg-transparent text-fg border border-border hover:bg-surface-2',
   danger:
-    'bg-danger text-danger-fg hover:bg-danger/90 active:bg-danger/80 shadow-sm',
+    'bg-danger text-danger-fg hover:bg-danger/85 active:bg-danger/70 border border-danger',
   success:
-    'bg-success text-success-fg hover:bg-success/90 active:bg-success/80 shadow-sm'
+    'bg-success text-success-fg hover:bg-success/85 active:bg-success/70 border border-success'
 };
 
 const sizeStyles = {
-  sm: 'h-8 rounded-md px-3 text-xs gap-1.5',
-  md: 'h-9 rounded-lg px-4 text-sm gap-2',
-  lg: 'h-11 rounded-lg px-5 text-base gap-2',
-  icon: 'h-9 w-9 rounded-lg p-0 gap-0'
+  sm: 'h-8 px-3 text-xs gap-1.5',
+  md: 'h-9 px-4 text-sm gap-2',
+  lg: 'h-11 px-5 text-base gap-2',
+  icon: 'h-9 w-9 p-0 gap-0'
 };
 
 export const Button = forwardRef(function Button(
@@ -53,7 +53,7 @@ export const Button = forwardRef(function Button(
       type={type}
       disabled={isDisabled}
       className={cn(
-        'inline-flex items-center justify-center font-medium transition select-none',
+        'inline-flex items-center justify-center font-display font-semibold transition-colors duration-75 select-none',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
         'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
         variantStyles[variant] || variantStyles.primary,
