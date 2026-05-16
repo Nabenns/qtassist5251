@@ -15,6 +15,7 @@ import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Input, FormField } from '../components/ui/Input.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
+import { StatusPill } from '../components/ui/brutalist/index.js';
 import { useToast } from '../components/ui/Toast.jsx';
 
 const STATUS_META = {
@@ -135,14 +136,15 @@ export default function DaftarIb() {
             ? `Halo ${user.globalName || user.username}, kelola pendaftaran IB Valetax kamu di sini.`
             : 'Kelola pendaftaran IB Valetax kamu.'
         }
+        accent="primary"
       />
 
       {config && !config.enabled ? (
         <Card>
           <CardBody>
-            <div className="rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning ring-1 ring-inset ring-warning/30">
-              <div className="font-medium">Sistem IB sedang dinonaktifkan</div>
-              <div className="mt-1">
+            <div className="border border-warning/40 bg-warning-soft px-4 py-3 font-mono text-sm text-warning">
+              <div className="font-bold uppercase tracking-wider">[ sistem ib dinonaktifkan ]</div>
+              <div className="mt-1 font-sans">
                 Admin belum mengaktifkan pendaftaran IB. Coba lagi nanti.
               </div>
             </div>
@@ -151,7 +153,7 @@ export default function DaftarIb() {
       ) : null}
 
       {error ? (
-        <div className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger ring-1 ring-inset ring-danger/30">
+        <div className="border border-danger/40 bg-danger-soft px-3 py-2 font-mono text-sm text-danger">
           {error}
         </div>
       ) : null}
@@ -177,7 +179,7 @@ export default function DaftarIb() {
               href={config.ibLink}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-primary hover:bg-surface-2"
+              className="inline-flex items-center gap-1.5 border border-primary bg-transparent px-3 py-1.5 font-mono text-xs font-bold uppercase tracking-wider text-primary hover:bg-primary hover:text-primary-fg transition-colors duration-75"
             >
               <ExternalLink className="h-4 w-4" />
               Buka link IB
@@ -193,17 +195,15 @@ export default function DaftarIb() {
               <div className="flex items-center gap-2">
                 <StatusIcon className={`h-5 w-5 text-${meta.tone}`} />
                 <div>
-                  <div className="text-sm font-semibold text-fg">Status Akun Kamu</div>
+                  <div className="font-display text-sm font-bold uppercase tracking-wider text-fg">Status Akun Kamu</div>
                   <div className="text-xs text-muted-fg">{meta.label}</div>
                 </div>
               </div>
-              <Badge tone={meta.tone} dot>
-                {meta.label}
-              </Badge>
+              <StatusPill status={account.status} />
             </div>
           </CardHeader>
           <CardBody className="space-y-4">
-            <div className="rounded-lg border border-border bg-surface-2 p-4 text-sm space-y-1.5">
+            <div className="border border-border bg-surface-2 p-4 text-sm space-y-1.5">
               <Row
                 label="Nomor akun broker"
                 value={
@@ -266,19 +266,19 @@ export default function DaftarIb() {
             <p className="text-sm text-muted-fg">{meta.description}</p>
 
             {account.lastError ? (
-              <div className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning ring-1 ring-inset ring-warning/30">
-                <div className="font-medium">Pesan dari sistem</div>
-                <div className="mt-0.5">{account.lastError}</div>
+              <div className="border border-warning/40 bg-warning-soft px-3 py-2 font-mono text-sm text-warning">
+                <div className="font-bold uppercase tracking-wider">[ pesan dari sistem ]</div>
+                <div className="mt-0.5 font-sans">{account.lastError}</div>
               </div>
             ) : null}
 
             {account.removedAt ? (
-              <div className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger ring-1 ring-inset ring-danger/30">
-                <div className="font-medium">Role dicabut</div>
-                <div className="mt-0.5">
+              <div className="border border-danger/40 bg-danger-soft px-3 py-2 font-mono text-sm text-danger">
+                <div className="font-bold uppercase tracking-wider">[ role dicabut ]</div>
+                <div className="mt-0.5 font-sans">
                   {account.removedReason || 'Tidak ada alasan tercatat'}
                 </div>
-                <div className="text-xs text-danger/80">{formatDateTime(account.removedAt)}</div>
+                <div className="text-[10px] uppercase tracking-wider text-danger/80">{formatDateTime(account.removedAt)}</div>
               </div>
             ) : null}
 

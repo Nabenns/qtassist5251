@@ -16,6 +16,7 @@ import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Input, Select, Textarea, FormField } from '../components/ui/Input.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
+import { StatusPill } from '../components/ui/brutalist/index.js';
 import { useToast } from '../components/ui/Toast.jsx';
 import { Skeleton } from '../components/ui/Skeleton.jsx';
 
@@ -203,6 +204,7 @@ export default function IbSettings() {
       <PageHeader
         title="Pengaturan IB"
         description="Konfigurasi sistem pendaftaran IB Valetax: cookie, role, retry, dan threshold."
+        accent="primary"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <FormField className="min-w-[220px]">
@@ -245,7 +247,7 @@ export default function IbSettings() {
           <Skeleton className="h-72 w-full" />
         </div>
       ) : error ? (
-        <div className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger ring-1 ring-inset ring-danger/30">
+        <div className="border border-danger/40 bg-danger-soft px-3 py-2 font-mono text-sm text-danger">
           {error}
         </div>
       ) : (
@@ -260,10 +262,10 @@ export default function IbSettings() {
               description="Master switch + integrasi Discord"
             />
             <CardBody className="space-y-4">
-              <label className="flex items-start gap-3 rounded-lg border border-border bg-surface-2 p-3 text-sm text-fg">
+              <label className="flex items-start gap-3 border border-border bg-surface-2 p-3 text-sm text-fg">
                 <input
                   type="checkbox"
-                  className="mt-0.5 rounded border-border"
+                  className="mt-0.5 border-border"
                   checked={enabled}
                   onChange={(e) => setEnabled(e.target.checked)}
                 />
@@ -358,10 +360,8 @@ export default function IbSettings() {
             />
             <CardBody className="space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-fg">Status</span>
-                <Badge tone={cookieMeta.tone} dot>
-                  {cookieMeta.label}
-                </Badge>
+                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-muted-fg">Status</span>
+                <StatusPill status={cookieStatus === 'unknown' ? 'inactive' : cookieStatus} />
               </div>
               <div className="text-xs text-muted-fg">
                 {config?.cookie?.configured ? (
@@ -378,7 +378,7 @@ export default function IbSettings() {
                 </div>
               ) : null}
               {config?.cookie?.lastTestMessage ? (
-                <div className="rounded-lg bg-warning-soft px-2.5 py-1.5 text-xs text-warning">
+                <div className="border border-warning/40 bg-warning-soft px-2.5 py-1.5 font-mono text-xs text-warning">
                   {config.cookie.lastTestMessage}
                 </div>
               ) : null}
@@ -462,10 +462,10 @@ export default function IbSettings() {
               description="Auto-revoke role kalau user tidak trading"
             />
             <CardBody className="space-y-3">
-              <label className="flex items-start gap-3 rounded-lg border border-border bg-surface-2 p-3 text-sm text-fg">
+              <label className="flex items-start gap-3 border border-border bg-surface-2 p-3 text-sm text-fg">
                 <input
                   type="checkbox"
-                  className="mt-0.5 rounded border-border"
+                  className="mt-0.5 border-border"
                   checked={volumeCheck}
                   onChange={(e) => setVolumeCheck(e.target.checked)}
                 />

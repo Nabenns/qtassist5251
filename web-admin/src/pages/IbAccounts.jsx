@@ -17,6 +17,7 @@ import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Input, Select, Textarea, FormField } from '../components/ui/Input.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
+import { StatusPill } from '../components/ui/brutalist/index.js';
 import { useToast } from '../components/ui/Toast.jsx';
 import {
   Modal,
@@ -119,6 +120,7 @@ export default function IbAccounts() {
       <PageHeader
         title="Akun IB"
         description="Daftar pendaftaran IB user beserta status verifikasi dan riwayat volume."
+        accent="primary"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button
@@ -185,7 +187,7 @@ export default function IbAccounts() {
       </Card>
 
       {error ? (
-        <div className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger ring-1 ring-inset ring-danger/30">
+        <div className="border border-danger/40 bg-danger-soft px-3 py-2 font-mono text-sm text-danger">
           {error}
         </div>
       ) : null}
@@ -229,9 +231,7 @@ export default function IbAccounts() {
                     </TD>
                     <TD className="font-mono text-xs">{a.brokerAccountNumber}</TD>
                     <TD>
-                      <Badge tone={meta.tone} dot>
-                        {meta.label}
-                      </Badge>
+                      <StatusPill status={a.status} />
                     </TD>
                     <TD>{a.totalDepositUsd != null ? `USD ${Number(a.totalDepositUsd).toFixed(2)}` : '-'}</TD>
                     <TD className="text-fg-muted">{a.retryCount}</TD>
@@ -374,7 +374,7 @@ function DetailModal({ account, onClose, onChanged }) {
       />
       <ModalBody>
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <Field label="Status" value={<Badge tone={meta.tone} dot>{meta.label}</Badge>} />
+          <Field label="Status" value={<StatusPill status={account.status} />} />
           <Field label="Retry count" value={account.retryCount} />
           <Field label="Total deposit" value={account.totalDepositUsd != null ? `USD ${Number(account.totalDepositUsd).toFixed(2)}` : '-'} />
           <Field label="Verified at" value={account.verifiedAt ? formatDateTime(account.verifiedAt) : '-'} />
@@ -385,46 +385,46 @@ function DetailModal({ account, onClose, onChanged }) {
         </div>
 
         {account.lastError ? (
-          <div className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">
-            <div className="font-medium">Pesan error terakhir</div>
-            <div className="mt-0.5">{account.lastError}</div>
+          <div className="border border-warning/40 bg-warning-soft px-3 py-2 font-mono text-sm text-warning">
+            <div className="font-bold uppercase tracking-wider">[ pesan error terakhir ]</div>
+            <div className="mt-0.5 font-sans">{account.lastError}</div>
           </div>
         ) : null}
 
         {account.removedAt ? (
-          <div className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
-            <div className="font-medium">Role dicabut</div>
-            <div className="mt-0.5">{account.removedReason || 'Tidak ada alasan tercatat'}</div>
-            <div className="text-xs text-danger/80">{formatDateTime(account.removedAt)}</div>
+          <div className="border border-danger/40 bg-danger-soft px-3 py-2 font-mono text-sm text-danger">
+            <div className="font-bold uppercase tracking-wider">[ role dicabut ]</div>
+            <div className="mt-0.5 font-sans">{account.removedReason || 'Tidak ada alasan tercatat'}</div>
+            <div className="text-[10px] uppercase tracking-wider text-danger/80">{formatDateTime(account.removedAt)}</div>
           </div>
         ) : null}
 
         <div>
-          <div className="mb-2 text-xs uppercase tracking-wide text-muted-fg">
-            Riwayat volume (60 hari terakhir)
+          <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-muted-fg">
+            § Riwayat volume (60 hari terakhir)
           </div>
           {loading ? (
             <div className="text-sm text-muted-fg">Memuat...</div>
           ) : volumes.length === 0 ? (
-            <div className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-muted-fg">
+            <div className="border border-border bg-surface-2 px-3 py-2 text-sm text-muted-fg">
               Belum ada data volume.
             </div>
           ) : (
-            <div className="max-h-48 overflow-y-auto rounded-lg border border-border">
+            <div className="max-h-48 overflow-y-auto border border-border">
               <table className="min-w-full divide-y divide-border text-xs">
-                <thead className="bg-surface-2">
-                  <tr className="text-left uppercase text-muted-fg">
-                    <th className="px-3 py-1.5">Tanggal</th>
-                    <th className="px-3 py-1.5">Lots</th>
-                    <th className="px-3 py-1.5">Diambil</th>
+                <thead className="bg-surface-2 border-b-2 border-border">
+                  <tr className="text-left">
+                    <th className="px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-muted-fg">Tanggal</th>
+                    <th className="px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-muted-fg">Lots</th>
+                    <th className="px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-muted-fg">Diambil</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {volumes.map((v) => (
-                    <tr key={v.id}>
+                    <tr key={v.id} className="hover:bg-surface-2">
                       <td className="px-3 py-1.5 font-mono">{v.date}</td>
-                      <td className="px-3 py-1.5">{v.volumeLots.toFixed(2)}</td>
-                      <td className="px-3 py-1.5 text-muted-fg">{formatDateTime(v.fetchedAt)}</td>
+                      <td className="px-3 py-1.5 font-mono">{v.volumeLots.toFixed(2)}</td>
+                      <td className="px-3 py-1.5 font-mono text-muted-fg">{formatDateTime(v.fetchedAt)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -435,10 +435,10 @@ function DetailModal({ account, onClose, onChanged }) {
 
         {account.lastCheckResponse ? (
           <div>
-            <div className="mb-1 text-xs uppercase tracking-wide text-muted-fg">
-              Respon broker terakhir (sanitized)
+            <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-muted-fg">
+              § Respon broker terakhir (sanitized)
             </div>
-            <pre className="overflow-x-auto rounded-md bg-surface px-3 py-2 text-[11px] text-fg-muted ring-1 ring-border">
+            <pre className="overflow-x-auto border border-border bg-surface px-3 py-2 font-mono text-[11px] text-fg-muted">
               {JSON.stringify(account.lastCheckResponse, null, 2)}
             </pre>
           </div>
@@ -496,7 +496,7 @@ function RemoveModal({ account, onClose, onDone }) {
       />
       <ModalBody>
         {account ? (
-          <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm space-y-1">
+          <div className="border border-border bg-surface-2 p-3 text-sm space-y-1">
             <div>User: <span className="font-mono text-xs">{account.userId}</span></div>
             <div>Akun: <span className="font-mono text-xs">{account.brokerAccountNumber}</span></div>
             {account.totalDepositUsd != null ? (
