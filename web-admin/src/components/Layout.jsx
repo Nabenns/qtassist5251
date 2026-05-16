@@ -338,12 +338,14 @@ function Topbar({ onMenu, mobileOpen }) {
           <DropdownMenu.Trigger asChild>
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-fg hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+              className="inline-flex items-center gap-2 border border-border bg-surface px-3 py-1.5 text-sm text-fg hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
             >
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-fg text-xs font-semibold">
-                {user?.username?.[0]?.toUpperCase() || '?'}
+              <div className="flex h-6 w-6 items-center justify-center bg-primary text-primary-fg font-display font-black text-xs">
+                {user?.username?.[0]?.toUpperCase() || 'Q'}
               </div>
-              <span className="hidden sm:inline">{user?.globalName || user?.username || 'user'}</span>
+              <span className="hidden sm:inline font-mono text-xs uppercase tracking-wider">
+                {user?.globalName || user?.username || 'user'}
+              </span>
               <ChevronDown className="h-4 w-4 text-muted-fg" />
             </button>
           </DropdownMenu.Trigger>
@@ -352,13 +354,12 @@ function Topbar({ onMenu, mobileOpen }) {
               align="end"
               sideOffset={6}
               className={cn(
-                'z-30 min-w-[12rem] rounded-lg border border-border bg-surface p-1 shadow-floating',
+                'z-30 min-w-[12rem] border border-border bg-surface p-1 shadow-step',
                 'animate-in'
               )}
             >
-              <div className="px-2 py-1.5 text-xs text-muted-fg">
-                {isAdmin ? 'Admin' : 'User'} ·{' '}
-                <span className="font-medium text-fg">{user?.username}</span>
+              <div className="px-2 py-1.5 font-mono text-[9px] uppercase tracking-[0.15em] text-muted-fg">
+                {isAdmin ? 'admin' : 'user'} · <span className="font-bold text-fg">{user?.username}</span>
               </div>
               <DropdownMenu.Separator className="my-1 h-px bg-border" />
               <DropdownMenu.Item
@@ -366,7 +367,7 @@ function Topbar({ onMenu, mobileOpen }) {
                   e.preventDefault();
                   handleLogout();
                 }}
-                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-fg outline-none hover:bg-surface-2 focus:bg-surface-2"
+                className="flex cursor-pointer items-center gap-2 px-2 py-1.5 font-mono text-xs uppercase tracking-wider text-fg outline-none hover:bg-surface-2 focus:bg-surface-2"
               >
                 <LogOut className="h-4 w-4" />
                 Keluar
