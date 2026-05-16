@@ -30,7 +30,6 @@ import {
 import { api, formatIDR, formatDateTime } from '../api.js';
 import { PageHeader } from '../components/ui/PageHeader.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
-import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import {
   DataTable,
@@ -43,6 +42,7 @@ import {
   TableEmpty
 } from '../components/ui/Table.jsx';
 import { SkeletonCard, Skeleton } from '../components/ui/Skeleton.jsx';
+import { KPIBlock, StatusPill } from '../components/ui/brutalist/index.js';
 import {
   useChartTheme,
   tooltipContentStyle,
@@ -51,7 +51,6 @@ import {
 } from '../components/charts/theme.js';
 import { Select, FormField } from '../components/ui/Input.jsx';
 import { useRealtimeEvent } from '../lib/realtime.jsx';
-import { cn } from '../lib/cn.js';
 
 const RANGE_OPTIONS = [
   { value: 7, label: '7 hari terakhir' },
@@ -59,32 +58,17 @@ const RANGE_OPTIONS = [
   { value: 90, label: '90 hari terakhir' }
 ];
 
-function StatCard({ icon: Icon, label, value, hint, tone = 'neutral' }) {
-  const toneClass = {
-    neutral: 'bg-surface-3 text-fg-muted',
-    primary: 'bg-primary-soft text-primary',
-    success: 'bg-success-soft text-success',
-    warning: 'bg-warning-soft text-warning',
-    danger: 'bg-danger-soft text-danger',
-    info: 'bg-info-soft text-info'
-  }[tone];
+function StatCard({ icon: Icon, label, value, hint, tone = 'muted' }) {
+  // Map old tone names to KPIBlock tones; fallback to muted.
+  const KPI_TONES = ['primary', 'muted', 'success', 'warning', 'danger'];
+  const kpiTone = KPI_TONES.includes(tone) ? tone : 'muted';
   return (
-    <Card>
-      <CardBody>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-muted-fg">{label}</div>
-            <div className="mt-1 text-2xl font-semibold text-fg">{value}</div>
-            {hint ? <div className="mt-1 text-xs text-muted-fg">{hint}</div> : null}
-          </div>
-          {Icon ? (
-            <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', toneClass)}>
-              <Icon className="h-5 w-5" />
-            </div>
-          ) : null}
-        </div>
-      </CardBody>
-    </Card>
+    <div className="relative">
+      <KPIBlock label={label} value={value} delta={hint} tone={kpiTone} size="md" />
+      {Icon && kpiTone === 'muted' ? (
+        <Icon className="absolute right-3 top-3 h-4 w-4 text-muted-fg" aria-hidden="true" />
+      ) : null}
+    </div>
   );
 }
 
@@ -144,6 +128,7 @@ export default function Dashboard() {
       <PageHeader
         title="Dashboard"
         description="Ringkasan aktivitas bot, pendapatan, dan transaksi terbaru."
+        accent="primary"
         actions={
           <Button variant="secondary" onClick={load}>
             Muat ulang
@@ -152,7 +137,7 @@ export default function Dashboard() {
       />
 
       {error ? (
-        <div className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger ring-1 ring-inset ring-danger/30">
+        <div className="border border-danger/40 bg-danger-soft px-3 py-2 font-mono text-sm text-danger">
           {error}
         </div>
       ) : null}
@@ -171,7 +156,7 @@ export default function Dashboard() {
             />
             <StatCard
               icon={Calendar}
-              tone="info"
+              tone="muted"
               label="Pendapatan (30 Hari)"
               value={formatIDR(revenue?.last30Days)}
               hint="Disetujui dalam 30 hari terakhir"
@@ -287,7 +272,7 @@ export default function Dashboard() {
                   <TD>{tx.productName || '-'}</TD>
                   <TD>{formatIDR(tx.amount)}</TD>
                   <TD>
-                    <StatusBadge status={tx.status} />
+                    <StatusPill status={tx.status} />
                   </TD>
                   <TD className="text-muted-fg">{formatDateTime(tx.createdAt)}</TD>
                 </TR>
@@ -435,15 +420,19 @@ function TopProducts({ series, loading }) {
         <li key={p.productId} className="flex items-center gap-3 px-5 py-3">
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium text-fg">{p.productName}</div>
-            <div className="text-xs text-muted-fg">{p.count} disetujui</div>
-            <div className="mt-1 h-1.5 w-full rounded-full bg-surface-3">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-fg">
+              {p.count} disetujui
+            </div>
+            <div className="mt-1.5 h-1.5 w-full bg-surface-2 border border-border">
               <div
-                className="h-1.5 rounded-full bg-primary"
+                className="h-full bg-primary"
                 style={{ width: `${Math.max(4, (p.revenue / max) * 100)}%` }}
               />
             </div>
           </div>
-          <div className="whitespace-nowrap text-sm font-semibold text-fg">{formatIDR(p.revenue)}</div>
+          <div className="whitespace-nowrap font-display text-sm font-bold text-fg">
+            {formatIDR(p.revenue)}
+          </div>
         </li>
       ))}
     </ul>
