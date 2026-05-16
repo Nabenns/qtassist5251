@@ -76,8 +76,13 @@ export default function Login() {
           <HazardStripe height={4} density={10} />
 
           <div className="px-6 pt-6 pb-4 text-center">
-            <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center bg-primary text-primary-fg font-display font-black text-base">
-              Q
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center bg-primary p-1.5">
+              <img
+                src="/qtrades-logo.webp"
+                alt="QTrades"
+                className="h-full w-full object-contain"
+                loading="eager"
+              />
             </div>
             <h1 className="font-display text-xl font-bold uppercase tracking-[0.2em] text-fg">
               QTASSIST

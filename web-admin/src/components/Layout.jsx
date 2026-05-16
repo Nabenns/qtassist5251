@@ -168,8 +168,13 @@ function SidebarContent({ isAdmin, onNavigate }) {
     <>
       <div className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center bg-primary text-primary-fg font-display font-black text-base">
-            Q
+          <div className="flex h-8 w-8 items-center justify-center bg-primary p-1">
+            <img
+              src="/qtrades-logo.webp"
+              alt="QTrades"
+              className="h-full w-full object-contain"
+              loading="eager"
+            />
           </div>
           <div className="min-w-0">
             <div className="font-display text-sm font-bold uppercase tracking-wider text-fg leading-tight">
