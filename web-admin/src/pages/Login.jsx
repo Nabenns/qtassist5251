@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Moon, Sun } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { useTheme } from '../lib/theme.jsx';
-import { Button } from '../components/ui/Button.jsx';
+import { HazardStripe } from '../components/ui/brutalist/HazardStripe.jsx';
 
 const ERROR_MESSAGES = {
   oauth_not_configured:
@@ -56,63 +56,91 @@ export default function Login() {
     loginWithDiscord(returnTo);
   }
 
-  return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg px-4">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-32 -left-24 h-96 w-96 rounded-full bg-primary/20 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-32 -right-24 h-96 w-96 rounded-full bg-info/15 blur-3xl"
-      />
+  const isLoading = submitting || status === 'loading';
 
+  return (
+    <div className="relative flex min-h-screen items-center justify-center bg-bg px-4">
+      {/* Theme toggle pinned top-right */}
       <button
         type="button"
         onClick={toggle}
-        className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        className="absolute right-4 top-6 inline-flex h-9 w-9 items-center justify-center text-fg-muted hover:bg-surface-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
         aria-label="Ganti tema"
       >
         {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
       </button>
 
       <div className="relative z-10 w-full max-w-md">
-        <div className="surface p-8">
-          <div className="mb-7 flex flex-col items-center text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-fg text-xl font-bold shadow-soft">
+        {/* Top: hazard stripe + brand row */}
+        <div className="border border-border bg-surface shadow-step-lg">
+          <HazardStripe height={4} density={10} />
+
+          <div className="px-6 pt-6 pb-4 text-center">
+            <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center bg-primary text-primary-fg font-display font-black text-base">
               Q
             </div>
-            <h1 className="text-lg font-semibold text-fg">QTAssist</h1>
-            <p className="mt-1 text-sm text-muted-fg">
+            <h1 className="font-display text-xl font-bold uppercase tracking-[0.2em] text-fg">
+              QTASSIST
+            </h1>
+            <p className="mt-1 text-xs text-muted-fg">
               Masuk dengan akun Discord untuk lanjut
             </p>
           </div>
 
-          {error ? (
-            <div className="mb-4 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger ring-1 ring-inset ring-danger/30">
-              {error}
+          <div className="border-t border-border px-6 py-5">
+            {/* Mono request-label row */}
+            <div className="mb-3 flex items-baseline justify-between">
+              <span className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-muted-fg">
+                Discord Auth ·
+              </span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-fg-muted">
+                req · oauth2
+              </span>
             </div>
-          ) : null}
 
-          <Button
-            type="button"
-            onClick={handleClick}
-            className="w-full bg-[#5865F2] text-white hover:bg-[#4752c4] focus-visible:ring-[#5865F2]/40"
-            loading={submitting || status === 'loading'}
-          >
-            <DiscordLogo className="mr-2 h-5 w-5" />
-            {submitting ? 'Mengarahkan ke Discord...' : 'Login dengan Discord'}
-          </Button>
+            {/* Outline button */}
+            <button
+              type="button"
+              onClick={handleClick}
+              disabled={isLoading}
+              className="flex w-full items-center justify-center gap-2.5 border-2 border-primary bg-transparent px-5 py-3.5 font-display font-bold text-primary uppercase tracking-wider text-sm transition-colors duration-75 hover:bg-primary hover:text-primary-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none"
+            >
+              {isLoading ? (
+                <span className="font-mono text-xs">[ menyambungkan… ]</span>
+              ) : (
+                <>
+                  <DiscordLogo className="h-5 w-5" />
+                  Initiate Login
+                </>
+              )}
+            </button>
 
-          <p className="mt-5 text-center text-xs text-muted-fg">
-            Akses ke dashboard admin dibatasi untuk anggota dengan role admin.
-            User biasa akan diarahkan ke halaman daftar IB.
-          </p>
+            <div className="mt-3 text-center font-mono text-[9px] uppercase tracking-[0.2em] text-fg-muted">
+              ▼ scope · identify only
+            </div>
+
+            {error ? (
+              <div className="mt-4 border border-danger/40 bg-danger-soft px-3 py-2 font-mono text-xs text-danger">
+                <div className="font-bold uppercase tracking-wider mb-0.5">[ error ]</div>
+                <div className="font-sans">{error}</div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Footer info row */}
+          <div className="border-t border-border bg-surface-2 px-6 py-3 text-center">
+            <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-fg leading-relaxed">
+              admin · akses dashboard penuh
+              <br />
+              user · diarahkan ke daftar ib
+            </p>
+          </div>
         </div>
 
-        <p className="mt-4 text-center text-xs text-muted-fg">
-          QTrades · Login Discord
-        </p>
+        <div className="mt-4 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.2em] text-fg-muted">
+          <span>QTrades · Internal Tools</span>
+          <span className="text-primary">v1.0</span>
+        </div>
       </div>
     </div>
   );
