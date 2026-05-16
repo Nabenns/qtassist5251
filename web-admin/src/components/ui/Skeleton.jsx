@@ -30,7 +30,7 @@ export function SkeletonRow({ columns = 5, className }) {
 
 export function SkeletonCard({ className }) {
   return (
-    <div className={cn('surface p-5 space-y-3', className)}>
+    <div className={cn('bg-surface border border-border p-5 space-y-3', className)}>
       <Skeleton className="h-3 w-24" />
       <Skeleton className="h-7 w-32" />
       <Skeleton className="h-3 w-40" />
