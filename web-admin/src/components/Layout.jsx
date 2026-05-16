@@ -13,6 +13,8 @@ import {
   Database,
   Handshake,
   Users as UsersIcon,
+  Shield,
+  IdCard,
   LogOut,
   Moon,
   Sun,
@@ -33,34 +35,51 @@ import { useToast } from './ui/Toast.jsx';
 import { cn } from '../lib/cn.js';
 import { Tooltip } from './ui/Tooltip.jsx';
 import { Button } from './ui/Button.jsx';
+import { HazardStripe } from './ui/brutalist/HazardStripe.jsx';
 
-const navSections = [
-  {
-    label: 'Ringkasan',
-    items: [{ to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true }]
-  },
-  {
-    label: 'Operasional',
-    items: [
-      { to: '/transactions', label: 'Transaksi', icon: Receipt },
-      { to: '/temproles', label: 'Role Sementara', icon: Clock },
-      { to: '/products', label: 'Produk', icon: Package },
-      { to: '/emails', label: 'Daftar Email', icon: Mail },
-      { to: '/ib-accounts', label: 'Akun IB', icon: UsersIcon }
-    ]
-  },
-  {
-    label: 'Tools',
-    items: [
-      { to: '/users', label: 'Cari User', icon: Search },
-      { to: '/audit', label: 'Audit Log', icon: ListChecks },
-      { to: '/discord-post', label: 'Posting Discord', icon: Send },
-      { to: '/bot-status', label: 'Status Bot', icon: Activity },
-      { to: '/backups', label: 'Backup Database', icon: Database },
-      { to: '/ib-settings', label: 'Pengaturan IB', icon: Handshake }
-    ]
+/**
+ * Build the sidebar nav for the current viewer. Admins see the full
+ * dashboard; non-admin users see only the IB submission page.
+ */
+function getNavSections({ isAdmin }) {
+  if (!isAdmin) {
+    return [
+      {
+        label: 'Akun Saya',
+        items: [{ to: '/daftar-ib', label: 'Daftar IB', icon: IdCard, end: true }]
+      }
+    ];
   }
-];
+
+  return [
+    {
+      label: 'Ringkasan',
+      items: [{ to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true }]
+    },
+    {
+      label: 'Operasional',
+      items: [
+        { to: '/transactions', label: 'Transaksi', icon: Receipt },
+        { to: '/temproles', label: 'Role Sementara', icon: Clock },
+        { to: '/products', label: 'Produk', icon: Package },
+        { to: '/emails', label: 'Daftar Email', icon: Mail },
+        { to: '/ib-accounts', label: 'Akun IB', icon: UsersIcon }
+      ]
+    },
+    {
+      label: 'Tools',
+      items: [
+        { to: '/users', label: 'Cari User', icon: Search },
+        { to: '/audit', label: 'Audit Log', icon: ListChecks },
+        { to: '/discord-post', label: 'Posting Discord', icon: Send },
+        { to: '/bot-status', label: 'Status Bot', icon: Activity },
+        { to: '/backups', label: 'Backup Database', icon: Database },
+        { to: '/ib-settings', label: 'Pengaturan IB', icon: Handshake },
+        { to: '/admin-roles', label: 'Pengaturan Admin', icon: Shield }
+      ]
+    }
+  ];
+}
 
 export default function Layout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -68,14 +87,17 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const notifications = useDesktopNotifications();
+  const { isAdmin } = useAuth();
 
   // Close the sheet whenever the route changes
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
 
-  // Wire realtime events to toasts + browser notifications.
+  // Wire realtime events to toasts + browser notifications. Admins only —
+  // non-admins on /daftar-ib don't need transaction toasts.
   useRealtimeEvent(['transaction.pending_review'], (evt) => {
+    if (!isAdmin) return;
     const formatted = new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
@@ -95,6 +117,7 @@ export default function Layout({ children }) {
   });
 
   useRealtimeEvent(['transaction.approved', 'transaction.rejected'], (evt) => {
+    if (!isAdmin) return;
     const isApprove = evt.type === 'transaction.approved';
     if (isApprove) {
       toast.success('Transaksi disetujui', { description: evt.orderId, duration: 4000 });
@@ -105,6 +128,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen bg-bg text-fg">
+      <HazardStripe height={4} density={10} className="fixed top-0 left-0 right-0 z-40" />
       {/* Sidebar (desktop) */}
       <aside
         className={cn(
@@ -112,7 +136,7 @@ export default function Layout({ children }) {
           'transition-colors'
         )}
       >
-        <SidebarContent />
+        <SidebarContent isAdmin={isAdmin} />
       </aside>
 
       {/* Mobile sheet */}
@@ -123,7 +147,7 @@ export default function Layout({ children }) {
             onClick={() => setMobileOpen(false)}
           />
           <aside className="absolute inset-y-0 left-0 flex w-64 flex-col border-r border-border bg-surface shadow-floating">
-            <SidebarContent onNavigate={() => setMobileOpen(false)} />
+            <SidebarContent isAdmin={isAdmin} onNavigate={() => setMobileOpen(false)} />
           </aside>
         </div>
       ) : null}
@@ -138,24 +162,31 @@ export default function Layout({ children }) {
   );
 }
 
-function SidebarContent({ onNavigate }) {
+function SidebarContent({ isAdmin, onNavigate }) {
+  const navSections = getNavSections({ isAdmin });
   return (
     <>
-      <div className="flex items-center gap-3 border-b border-border px-4 py-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-fg font-semibold shadow-sm">
-          Q
-        </div>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-fg">QTAssist</div>
-          <div className="truncate text-xs text-muted-fg">Dashboard Admin</div>
+      <div className="border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center bg-primary text-primary-fg font-display font-black text-base">
+            Q
+          </div>
+          <div className="min-w-0">
+            <div className="font-display text-sm font-bold uppercase tracking-wider text-fg leading-tight">
+              QTASSIST
+            </div>
+            <div className="font-mono text-[9px] uppercase tracking-[0.15em] text-muted-fg leading-tight">
+              {isAdmin ? 'admin · ops desk' : 'user · daftar ib'}
+            </div>
+          </div>
         </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         {navSections.map((section) => (
           <div key={section.label} className="mb-4">
-            <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-fg/80">
-              {section.label}
+            <div className="px-3 pb-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-muted-fg">
+              § {section.label}
             </div>
             <ul className="space-y-0.5">
               {section.items.map((item) => {
@@ -168,16 +199,16 @@ function SidebarContent({ onNavigate }) {
                       onClick={() => onNavigate?.()}
                       className={({ isActive }) =>
                         cn(
-                          'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition',
+                          'group flex items-center gap-2.5 px-3 py-2 text-sm font-mono uppercase tracking-wider transition-colors duration-75',
                           'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
                           isActive
-                            ? 'bg-primary-soft text-primary'
+                            ? 'bg-primary text-primary-fg'
                             : 'text-fg-muted hover:bg-surface-2 hover:text-fg'
                         )
                       }
                     >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate text-[11px]">{item.label}</span>
                     </NavLink>
                   </li>
                 );
@@ -187,8 +218,15 @@ function SidebarContent({ onNavigate }) {
         ))}
       </nav>
 
-      <div className="border-t border-border p-3 text-[10px] text-muted-fg">
-        QTrades · v1
+      <div className="border-t border-border px-3 py-2.5 font-mono text-[9px] uppercase tracking-[0.15em] text-muted-fg space-y-0.5">
+        <div className="flex items-center justify-between">
+          <span>system</span>
+          <span className="text-primary">v1.0.0</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span>build</span>
+          <span>{import.meta.env.MODE}</span>
+        </div>
       </div>
     </>
   );
@@ -196,7 +234,7 @@ function SidebarContent({ onNavigate }) {
 
 function Topbar({ onMenu, mobileOpen }) {
   const { theme, toggle } = useTheme();
-  const { admin, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { connected } = useRealtime();
   const notifications = useDesktopNotifications();
@@ -303,9 +341,9 @@ function Topbar({ onMenu, mobileOpen }) {
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-fg hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
             >
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-fg text-xs font-semibold">
-                {admin?.username?.[0]?.toUpperCase() || 'A'}
+                {user?.username?.[0]?.toUpperCase() || '?'}
               </div>
-              <span className="hidden sm:inline">{admin?.username || 'admin'}</span>
+              <span className="hidden sm:inline">{user?.globalName || user?.username || 'user'}</span>
               <ChevronDown className="h-4 w-4 text-muted-fg" />
             </button>
           </DropdownMenu.Trigger>
@@ -319,7 +357,8 @@ function Topbar({ onMenu, mobileOpen }) {
               )}
             >
               <div className="px-2 py-1.5 text-xs text-muted-fg">
-                Login sebagai <span className="font-medium text-fg">{admin?.username}</span>
+                {isAdmin ? 'Admin' : 'User'} ·{' '}
+                <span className="font-medium text-fg">{user?.username}</span>
               </div>
               <DropdownMenu.Separator className="my-1 h-px bg-border" />
               <DropdownMenu.Item
