@@ -20,37 +20,37 @@
 
 @layer base {
   :root {
-    --bg: 248 250 252;          /* slate-50 */
-    --surface: 255 255 255;
-    --surface-2: 248 250 252;   /* slate-50 */
-    --surface-3: 241 245 249;   /* slate-100 */
-    --border: 226 232 240;      /* slate-200 */
-    --muted: 241 245 249;
-    --muted-fg: 100 116 139;    /* slate-500 */
-    --fg: 15 23 42;             /* slate-900 */
-    --fg-muted: 71 85 105;      /* slate-600 */
+    --bg: 250 250 246;           /* #fafaf6 — kraft cream paper */
+    --surface: 255 255 255;       /* pure white card */
+    --surface-2: 244 243 235;     /* #f4f3eb — subtle warm tint */
+    --surface-3: 233 230 217;     /* #e9e6d9 — hover/active */
+    --border: 8 22 28;            /* #08161c — jet navy hairlines, hard edges */
+    --muted: 244 243 235;
+    --muted-fg: 80 102 105;       /* #506669 — teal-leaning slate for labels */
+    --fg: 8 22 28;                /* #08161c — same navy as dark bg, max contrast on cream */
+    --fg-muted: 60 80 84;         /* #3c5054 — body secondary text */
 
-    --primary: 79 70 229;       /* indigo-600 */
+    --primary: 13 139 122;        /* #0d8b7a — deeper teal for AA contrast on cream */
     --primary-fg: 255 255 255;
-    --primary-soft: 238 242 255;
+    --primary-soft: 218 240 235;  /* #daf0eb — subtle teal-tinted bg */
 
-    --success: 22 163 74;
+    --success: 21 128 61;         /* #15803d — emerald-700 */
     --success-fg: 255 255 255;
-    --success-soft: 220 252 231;
+    --success-soft: 220 252 231;  /* emerald-100 */
 
-    --warning: 217 119 6;
+    --warning: 161 98 7;          /* #a16207 — yellow-700, readable on cream */
     --warning-fg: 255 255 255;
-    --warning-soft: 254 243 199;
+    --warning-soft: 254 249 195;  /* yellow-100 */
 
-    --danger: 220 38 38;
+    --danger: 185 28 28;          /* #b91c1c — red-700 */
     --danger-fg: 255 255 255;
-    --danger-soft: 254 226 226;
+    --danger-soft: 254 226 226;   /* red-100 */
 
-    --info: 37 99 235;
+    --info: 29 78 216;            /* #1d4ed8 — blue-700 */
     --info-fg: 255 255 255;
-    --info-soft: 219 234 254;
+    --info-soft: 219 234 254;     /* blue-100 */
 
-    --ring: 99 102 241;         /* indigo-500 for focus ring */
+    --ring: 13 139 122;           /* same as primary */
 
     color-scheme: light;
   }
