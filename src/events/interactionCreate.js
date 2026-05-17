@@ -4,16 +4,13 @@ const {
   Transaction,
   TemporaryRole,
   EmailBinding,
-  DriveConfig,
-  IbConfig,
-  IbAccount
+  DriveConfig
 } = require('../database/models');
 const { createSuccessEmbed, createErrorEmbed, createInfoEmbed, createWarningEmbed, QTRADES_LOGO_URL } = require('../utils/embedBuilder');
 const { formatDuration } = require('../utils/parseDuration');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
 const { syncTransactionToSheets } = require('../services/googleSheetsService');
 const { shareMultipleDriveFiles, revokeMultipleDriveAccess } = require('../services/googleDriveService');
-const ibService = require('../services/ibService');
 const { checkEmailEligibility } = require('../services/emailEligibility');
 
 module.exports = {
