@@ -11,7 +11,7 @@ const express = require('express');
 const { Op } = require('sequelize');
 const { Product, Transaction } = require('../../database/models');
 const { requireAuth } = require('../middleware');
-const { createLouvinTransaction, LouvinError } = require('../../services/louvinService');
+const { createLouvinTransaction, checkLouvinStatus, LouvinError } = require('../../services/louvinService');
 
 const PRODUCT_CACHE_TTL_MS = 5 * 60 * 1000;
 const productCache = new Map(); // serverId -> { items, expiresAt }
@@ -264,6 +264,119 @@ function buildRouter({ getDiscordClient }) {
       });
     } catch (error) {
       console.error('POST /api/shop/checkout error:', error);
+      return res.status(500).json({ error: 'internal_error' });
+    }
+  });
+
+  // GET /api/shop/transactions/:orderId — owner-only status + payment instructions.
+  router.get('/transactions/:orderId', async (req, res) => {
+    try {
+      const trx = await Transaction.findOne({
+        where: { orderId: req.params.orderId, userId: req.session.discordId },
+        include: [{ model: Product, as: 'product' }]
+      });
+      if (!trx) return res.status(404).json({ error: 'not_found' });
+      res.set('Cache-Control', 'no-store');
+      return res.json({
+        orderId: trx.orderId,
+        status: trx.status,
+        paymentChannel: trx.paymentChannel,
+        amount: trx.amount,
+        louvinPaymentType: trx.louvinPaymentType,
+        louvinPaymentNumber: trx.louvinPaymentNumber,
+        louvinFee: trx.louvinFee,
+        louvinTotalPayment: trx.louvinTotalPayment,
+        louvinExpiredAt: trx.louvinExpiredAt,
+        rejectionReason: trx.rejectionReason,
+        productName: trx.product?.name,
+        productRoleId: trx.product?.roleId,
+        productDuration: trx.product ? String(trx.product.duration) : null,
+        createdAt: trx.createdAt,
+        paidAt: trx.paidAt
+      });
+    } catch (error) {
+      console.error('GET /api/shop/transactions/:orderId error:', error);
+      return res.status(500).json({ error: 'internal_error' });
+    }
+  });
+
+  // POST /api/shop/transactions/:orderId/recheck — force pull status from Louvin.
+  // Useful when webhook is delayed.
+  router.post('/transactions/:orderId/recheck', async (req, res) => {
+    try {
+      const trx = await Transaction.findOne({
+        where: { orderId: req.params.orderId, userId: req.session.discordId }
+      });
+      if (!trx) return res.status(404).json({ error: 'not_found' });
+      if (!trx.louvinTransactionId) {
+        return res.status(400).json({ error: 'not_a_louvin_transaction' });
+      }
+      if (['approved', 'rejected', 'expired', 'cancelled'].includes(trx.status)) {
+        return res.json({ orderId: trx.orderId, status: trx.status, refreshed: false });
+      }
+
+      let lv;
+      try {
+        lv = await checkLouvinStatus(trx.louvinTransactionId);
+      } catch (err) {
+        return res.status(502).json({ error: 'gateway_error', message: err.message });
+      }
+
+      // Apply state changes — but DO NOT call approveTransaction here
+      // (that path is reserved for webhook handler to keep idempotency
+      // honest). Recheck only flips local status; user re-polls and
+      // webhook eventually grants role. If webhook never fires, admin
+      // must approve manually from /transactions admin page.
+      if (lv.transaction.status === 'failed' && trx.status === 'pending') {
+        await trx.update({ status: 'expired' });
+      }
+      // For settled, return current Louvin status to FE; webhook handler
+      // (or admin manual) will flip status to approved + grant role.
+      return res.json({
+        orderId: trx.orderId,
+        status: trx.status,
+        louvinStatus: lv.transaction.status,
+        refreshed: true
+      });
+    } catch (error) {
+      console.error('POST /api/shop/transactions/:orderId/recheck error:', error);
+      return res.status(500).json({ error: 'internal_error' });
+    }
+  });
+
+  // GET /api/shop/my-transactions — paginated history.
+  router.get('/my-transactions', async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+      const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+      const { rows, count } = await Transaction.findAndCountAll({
+        where: { userId: req.session.discordId },
+        include: [{ model: Product, as: 'product' }],
+        order: [['createdAt', 'DESC']],
+        limit,
+        offset
+      });
+
+      return res.json({
+        items: rows.map((t) => ({
+          orderId: t.orderId,
+          productName: t.product?.name || null,
+          amount: t.amount,
+          status: t.status,
+          paymentChannel: t.paymentChannel,
+          louvinPaymentType: t.louvinPaymentType,
+          louvinTotalPayment: t.louvinTotalPayment,
+          createdAt: t.createdAt,
+          paidAt: t.paidAt,
+          rejectionReason: t.rejectionReason
+        })),
+        total: count,
+        limit,
+        offset
+      });
+    } catch (error) {
+      console.error('GET /api/shop/my-transactions error:', error);
       return res.status(500).json({ error: 'internal_error' });
     }
   });
