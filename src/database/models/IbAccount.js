@@ -137,11 +137,21 @@ const IbAccount = sequelize.define('IbAccount', {
   updatedAt: 'updated_at',
   indexes: [
     {
-      // Prevent the same Discord user from submitting the same account twice
-      // in the same server.
+      // Prevent the same Discord user from submitting the same broker account
+      // twice in the same server. Allows multiple rows where broker_account_number
+      // is null (wizard pre-account) — that's covered by the partial index below.
       unique: true,
       fields: ['server_id', 'user_id', 'broker_account_number'],
       name: 'unique_account_per_user_per_server'
+    },
+    {
+      // Wizard step 1 / 2 create rows with broker_account_number = NULL.
+      // This partial unique index prevents concurrent clicks from creating
+      // duplicate pre-account rows for the same user.
+      unique: true,
+      fields: ['server_id', 'user_id'],
+      where: { broker_account_number: null },
+      name: 'ib_accounts_unique_pre_account_per_user'
     },
     { fields: ['server_id'] },
     { fields: ['user_id'] },

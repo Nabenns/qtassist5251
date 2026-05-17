@@ -5,6 +5,9 @@
  * broker_account_number from NOT NULL to nullable so wizard can create
  * the row in step 1 before user provides the number in step 3.
  *
+ * Adds a partial unique index `(server_id, user_id) WHERE broker_account_number IS NULL`
+ * so concurrent step-1 link clicks cannot create duplicate pre-account rows.
+ *
  * Idempotent — safe to re-run. Checks current column state before each
  * change. Run once via:
  *
@@ -22,12 +25,8 @@ require('dotenv').config();
 const { sequelize } = require('../sequelize');
 
 const TZ_TYPE = 'TIMESTAMP WITH TIME ZONE';
+const PARTIAL_INDEX_NAME = 'ib_accounts_unique_pre_account_per_user';
 
-/**
- * Postgres reports `TIMESTAMP WITH TIME ZONE` as `TIMESTAMP WITH TIME ZONE`
- * via Sequelize's describeTable, but plain `TIMESTAMP` shows as `TIMESTAMP`.
- * Treat anything that doesn't include "WITH TIME ZONE" as drift.
- */
 function isTimestampWithTimezone(colType) {
   if (!colType) return false;
   return /WITH TIME ZONE/i.test(colType);
@@ -44,7 +43,6 @@ async function ensureTimestampTzColumn(queryInterface, columnName, tableDescript
     return;
   }
   if (!isTimestampWithTimezone(col.type)) {
-    // Use raw SQL via the underlying connection so the timezone semantics are preserved.
     await sequelize.query(
       `ALTER TABLE ib_accounts ALTER COLUMN ${columnName} TYPE TIMESTAMP WITH TIME ZONE USING ${columnName} AT TIME ZONE 'UTC'`
     );
@@ -52,6 +50,49 @@ async function ensureTimestampTzColumn(queryInterface, columnName, tableDescript
     return;
   }
   console.log(`ℹ️  Column ${columnName} already TIMESTAMP WITH TIME ZONE, skipping`);
+}
+
+async function ensurePartialUniqueIndex() {
+  // Check if index already exists
+  const [results] = await sequelize.query(
+    `SELECT indexname FROM pg_indexes WHERE tablename = 'ib_accounts' AND indexname = $1`,
+    { bind: [PARTIAL_INDEX_NAME] }
+  );
+
+  if (results.length > 0) {
+    console.log(`ℹ️  Partial unique index ${PARTIAL_INDEX_NAME} already exists, skipping`);
+    return;
+  }
+
+  // Before creating, deduplicate any existing pre-account rows that would conflict.
+  // Keep the most recently updated row per (server_id, user_id) pair where
+  // broker_account_number IS NULL. Older duplicates get deleted.
+  const [duplicates] = await sequelize.query(`
+    SELECT id FROM (
+      SELECT id, ROW_NUMBER() OVER (
+        PARTITION BY server_id, user_id
+        ORDER BY updated_at DESC, id DESC
+      ) AS rn
+      FROM ib_accounts
+      WHERE broker_account_number IS NULL
+    ) t
+    WHERE rn > 1
+  `);
+
+  if (duplicates.length > 0) {
+    const ids = duplicates.map((r) => r.id);
+    await sequelize.query(
+      `DELETE FROM ib_accounts WHERE id IN (${ids.join(',')})`
+    );
+    console.log(`✅ Deduplicated ${ids.length} legacy pre-account row(s) before adding index`);
+  }
+
+  await sequelize.query(`
+    CREATE UNIQUE INDEX ${PARTIAL_INDEX_NAME}
+    ON ib_accounts (server_id, user_id)
+    WHERE broker_account_number IS NULL
+  `);
+  console.log(`✅ Created partial unique index ${PARTIAL_INDEX_NAME}`);
 }
 
 async function migrate() {
@@ -82,6 +123,8 @@ async function migrate() {
   } else {
     console.warn('⚠️  Column broker_account_number not found — was the table renamed?');
   }
+
+  await ensurePartialUniqueIndex();
 
   console.log('✅ Migration complete');
 }
