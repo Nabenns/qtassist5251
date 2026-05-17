@@ -39,6 +39,25 @@ const Product = sequelize.define('Product', {
     type: DataTypes.STRING,
     allowNull: false,
     field: 'server_id'
+  },
+  paymentMethods: {
+    type: DataTypes.JSONB,
+    allowNull: false,
+    defaultValue: ['qris'],
+    field: 'payment_methods',
+    validate: {
+      isValidMethods(value) {
+        const VALID = ['qris', 'gopay', 'shopeepay', 'bni_va', 'bri_va', 'permata_va', 'cimb_niaga_va'];
+        if (!Array.isArray(value) || value.length === 0) {
+          throw new Error('paymentMethods must be a non-empty array');
+        }
+        for (const m of value) {
+          if (!VALID.includes(m)) {
+            throw new Error(`Invalid payment method: ${m}`);
+          }
+        }
+      }
+    }
   }
 }, {
   tableName: 'products',
