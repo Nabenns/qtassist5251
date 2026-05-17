@@ -20,6 +20,8 @@ const buildBackupsRouter = require('./routes/backups');
 const buildIbRouter = require('./routes/ib');
 const buildAdminRolesRouter = require('./routes/adminRoles');
 const buildEmailRolesRouter = require('./routes/emailRoles');
+const buildShopRouter = require('./routes/shop');
+const buildWebhooksRouter = require('./routes/webhooks');
 
 const { setDiscordClientAccessor } = require('../services/discordRoleSync');
 const { setDiscordClientAccessor: setEmailEligibilityClientAccessor } = require('../services/emailEligibility');
@@ -91,6 +93,8 @@ function startWebServer({ getDiscordClient }) {
   app.use('/api/ib', buildIbRouter({ getDiscordClient }));
   app.use('/api/admin-roles', buildAdminRolesRouter({ getDiscordClient }));
   app.use('/api/email-roles', buildEmailRolesRouter({ getDiscordClient }));
+  app.use('/api/shop', buildShopRouter({ getDiscordClient }));
+  app.use('/api/webhooks', buildWebhooksRouter({ getDiscordClient }));
 
   // 404 for unknown /api/* requests so they don't fall through to the SPA
   app.use('/api', (req, res) => {
