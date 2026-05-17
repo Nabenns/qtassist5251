@@ -4,7 +4,9 @@ import {
   Save,
   Trash2,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Lock,
+  ShieldOff
 } from 'lucide-react';
 import { api, ApiError, formatDateTime } from '../api.js';
 import { useAuth } from '../auth.jsx';
@@ -21,16 +23,17 @@ import {
 } from '../components/ui/Modal.jsx';
 
 /**
- * MyEmail — self-service email binding for any logged-in user.
+ * MyEmail — self-service email binding page.
  *
- * Mirrors the Discord `/my-email` slash command + the email-register
- * button flow, but driven from the dashboard so non-admin users can
- * bind / update / remove their email without touching Discord.
+ * Three eligibility states:
+ *   1. eligible (admin or holds required role) → show form
+ *   2. feature_disabled (admin hasn't configured any roles) → show locked banner
+ *   3. no_required_role (feature is on but user lacks role) → show role-required banner
  */
 export default function MyEmail() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [binding, setBinding] = useState(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -43,7 +46,7 @@ export default function MyEmail() {
     setLoading(true);
     try {
       const res = await api.get('/api/emails/me');
-      setBinding(res.binding);
+      setData(res);
       setEmailInput(res.binding?.email || '');
       setError(null);
     } catch (err) {
@@ -63,8 +66,8 @@ export default function MyEmail() {
     setSubmitting(true);
     try {
       const res = await api.put('/api/emails/me', { email: emailInput.trim() });
-      setBinding(res.binding);
-      toast.success(binding ? 'Email berhasil diupdate.' : 'Email berhasil didaftarkan.');
+      setData((prev) => ({ ...prev, binding: res.binding }));
+      toast.success(data?.binding ? 'Email berhasil diupdate.' : 'Email berhasil didaftarkan.');
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Coba lagi.';
       toast.error('Gagal menyimpan email', { description: msg });
@@ -77,7 +80,7 @@ export default function MyEmail() {
     setRemoving(true);
     try {
       await api.delete('/api/emails/me');
-      setBinding(null);
+      setData((prev) => ({ ...prev, binding: null }));
       setEmailInput('');
       setConfirmRemove(false);
       toast.success('Email berhasil dihapus.');
@@ -89,8 +92,11 @@ export default function MyEmail() {
     }
   }
 
+  const binding = data?.binding;
+  const eligibility = data?.eligibility;
   const isDirty = emailInput.trim() !== (binding?.email || '');
   const hasBinding = Boolean(binding);
+  const isEligible = eligibility?.eligible !== false;
 
   return (
     <div className="space-y-6">
@@ -110,7 +116,11 @@ export default function MyEmail() {
         </div>
       ) : null}
 
-      {!loading ? (
+      {!loading && !isEligible ? (
+        <NotEligibleBanner reason={eligibility?.reason} />
+      ) : null}
+
+      {!loading && isEligible ? (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -136,25 +146,15 @@ export default function MyEmail() {
               <div className="border border-border bg-surface-2 p-4 text-sm space-y-1.5">
                 <Row
                   label="Email aktif"
-                  value={
-                    <span className="font-mono text-xs">{binding.email}</span>
-                  }
+                  value={<span className="font-mono text-xs">{binding.email}</span>}
                 />
                 <Row
                   label="Terdaftar sejak"
-                  value={
-                    binding.registeredAt
-                      ? formatDateTime(binding.registeredAt)
-                      : '-'
-                  }
+                  value={binding.registeredAt ? formatDateTime(binding.registeredAt) : '-'}
                 />
                 <Row
                   label="Terakhir diupdate"
-                  value={
-                    binding.updatedAt
-                      ? formatDateTime(binding.updatedAt)
-                      : '-'
-                  }
+                  value={binding.updatedAt ? formatDateTime(binding.updatedAt) : '-'}
                 />
               </div>
             ) : null}
@@ -209,7 +209,7 @@ export default function MyEmail() {
           <div>· Setiap user hanya bisa daftar 1 email per server.</div>
           <div>· Email dipakai oleh admin untuk grant akses video / drive eksklusif.</div>
           <div>· Kalau ganti email, akses lama akan dipindahkan otomatis (admin akan dinotifikasi).</div>
-          <div>· Kamu bisa update atau hapus email kapan saja dari halaman ini.</div>
+          <div>· Akses ke fitur ini diatur oleh admin server berdasarkan role Discord kamu.</div>
         </CardBody>
       </Card>
 
@@ -250,6 +250,49 @@ export default function MyEmail() {
         </ModalFooter>
       </Modal>
     </div>
+  );
+}
+
+function NotEligibleBanner({ reason }) {
+  if (reason === 'feature_disabled') {
+    return (
+      <Card>
+        <CardBody>
+          <div className="flex items-start gap-3">
+            <ShieldOff className="h-5 w-5 shrink-0 text-warning mt-0.5" />
+            <div>
+              <div className="font-display text-sm font-bold uppercase tracking-wider text-fg">
+                Fitur Belum Dibuka
+              </div>
+              <div className="mt-1 text-sm text-muted-fg">
+                Admin server belum mengaktifkan pendaftaran email. Hubungi admin
+                kalau kamu butuh akses ke video / drive eksklusif.
+              </div>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+    );
+  }
+
+  // no_required_role / member_not_found / bot_not_ready / etc.
+  return (
+    <Card>
+      <CardBody>
+        <div className="flex items-start gap-3">
+          <Lock className="h-5 w-5 shrink-0 text-warning mt-0.5" />
+          <div>
+            <div className="font-display text-sm font-bold uppercase tracking-wider text-fg">
+              Akses Terbatas
+            </div>
+            <div className="mt-1 text-sm text-muted-fg">
+              Kamu belum punya role Discord yang dibutuhkan untuk daftar email.
+              Hubungi admin server kalau kamu butuh role tersebut.
+            </div>
+          </div>
+        </div>
+      </CardBody>
+    </Card>
   );
 }
 

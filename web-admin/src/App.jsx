@@ -15,6 +15,7 @@ import Backups from './pages/Backups.jsx';
 import IbSettings from './pages/IbSettings.jsx';
 import IbAccounts from './pages/IbAccounts.jsx';
 import AdminRoles from './pages/AdminRoles.jsx';
+import EmailRoles from './pages/EmailRoles.jsx';
 import DaftarIb from './pages/DaftarIb.jsx';
 import MyEmail from './pages/MyEmail.jsx';
 
@@ -123,6 +124,7 @@ export default function App() {
       <Route path="/ib-settings" element={<AdminShell><IbSettings /></AdminShell>} />
       <Route path="/ib-accounts" element={<AdminShell><IbAccounts /></AdminShell>} />
       <Route path="/admin-roles" element={<AdminShell><AdminRoles /></AdminShell>} />
+      <Route path="/email-roles" element={<AdminShell><EmailRoles /></AdminShell>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

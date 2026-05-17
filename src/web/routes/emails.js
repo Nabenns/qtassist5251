@@ -1,6 +1,7 @@
 const express = require('express');
 const { EmailBinding } = require('../../database/models');
 const { requireAuth, requireAdmin } = require('../middleware');
+const { checkEmailEligibility } = require('../../services/emailEligibility');
 
 const router = express.Router();
 
@@ -30,10 +31,23 @@ router.get('/me', requireAuth, async (req, res) => {
   try {
     const serverId = getServerId();
     if (!serverId) return res.status(500).json({ error: 'server_not_configured' });
+
+    const eligibility = await checkEmailEligibility({
+      serverId,
+      userId: req.session.discordId,
+      isAdmin: req.session.isAdmin
+    });
+
     const binding = await EmailBinding.findOne({
       where: { serverId, userId: req.session.discordId }
     });
+
     return res.json({
+      eligibility: {
+        eligible: eligibility.eligible,
+        reason: eligibility.reason,
+        requiredRoleIds: eligibility.requiredRoleIds || []
+      },
       binding: binding
         ? {
             email: binding.email,
@@ -52,6 +66,22 @@ router.put('/me', requireAuth, async (req, res) => {
   try {
     const serverId = getServerId();
     if (!serverId) return res.status(500).json({ error: 'server_not_configured' });
+
+    const eligibility = await checkEmailEligibility({
+      serverId,
+      userId: req.session.discordId,
+      isAdmin: req.session.isAdmin
+    });
+    if (!eligibility.eligible) {
+      const status = eligibility.reason === 'feature_disabled' ? 403 : 403;
+      return res.status(status).json({
+        error: eligibility.reason || 'forbidden',
+        message:
+          eligibility.reason === 'feature_disabled'
+            ? 'Fitur email belum dibuka oleh admin.'
+            : 'Kamu belum punya role yang dibutuhkan untuk daftar email.'
+      });
+    }
 
     const email = String(req.body?.email || '').trim().toLowerCase();
     if (!email) {
@@ -105,7 +135,6 @@ router.put('/me', requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('PUT /api/emails/me error:', error);
-    // Sequelize unique constraint violation surfaces here as a fallback
     if (error?.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).json({
         error: 'email_taken',
@@ -120,6 +149,22 @@ router.delete('/me', requireAuth, async (req, res) => {
   try {
     const serverId = getServerId();
     if (!serverId) return res.status(500).json({ error: 'server_not_configured' });
+
+    const eligibility = await checkEmailEligibility({
+      serverId,
+      userId: req.session.discordId,
+      isAdmin: req.session.isAdmin
+    });
+    if (!eligibility.eligible) {
+      return res.status(403).json({
+        error: eligibility.reason || 'forbidden',
+        message:
+          eligibility.reason === 'feature_disabled'
+            ? 'Fitur email belum dibuka oleh admin.'
+            : 'Kamu belum punya role yang dibutuhkan untuk hapus email.'
+      });
+    }
+
     const removed = await EmailBinding.destroy({
       where: { serverId, userId: req.session.discordId }
     });

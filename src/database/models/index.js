@@ -8,6 +8,7 @@ const DriveConfig = require('./DriveConfig');
 const AdminUser = require('./AdminUser');
 const DashboardUser = require('./DashboardUser');
 const AdminRole = require('./AdminRole');
+const EmailRole = require('./EmailRole');
 const IbConfig = require('./IbConfig');
 const IbAccount = require('./IbAccount');
 const IbVolumeRecord = require('./IbVolumeRecord');
@@ -42,6 +43,7 @@ module.exports = {
   AdminUser,
   DashboardUser,
   AdminRole,
+  EmailRole,
   IbConfig,
   IbAccount,
   IbVolumeRecord,

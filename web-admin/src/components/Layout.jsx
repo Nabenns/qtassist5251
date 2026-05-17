@@ -78,7 +78,8 @@ function getNavSections({ isAdmin }) {
         { to: '/bot-status', label: 'Status Bot', icon: Activity },
         { to: '/backups', label: 'Backup Database', icon: Database },
         { to: '/ib-settings', label: 'Pengaturan IB', icon: Handshake },
-        { to: '/admin-roles', label: 'Pengaturan Admin', icon: Shield }
+        { to: '/admin-roles', label: 'Pengaturan Admin', icon: Shield },
+        { to: '/email-roles', label: 'Pengaturan Email', icon: Mail }
       ]
     }
   ];

@@ -14,6 +14,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBui
 const { syncTransactionToSheets } = require('../services/googleSheetsService');
 const { shareMultipleDriveFiles, revokeMultipleDriveAccess } = require('../services/googleDriveService');
 const ibService = require('../services/ibService');
+const { checkEmailEligibility } = require('../services/emailEligibility');
 
 module.exports = {
   name: 'interactionCreate',
@@ -709,6 +710,23 @@ async function handleRejectReasonSubmit(interaction) {
  */
 async function handleEmailRegister(interaction) {
   try {
+    // Eligibility check: feature must be enabled (admins set up role IDs)
+    // and user must hold one of the configured roles. Admins bypass the check.
+    const eligibility = await checkEmailEligibility({
+      serverId: interaction.guild.id,
+      userId: interaction.user.id
+    });
+    if (!eligibility.eligible) {
+      const message =
+        eligibility.reason === 'feature_disabled'
+          ? 'Fitur pendaftaran email belum dibuka oleh admin. Hubungi admin server kalau butuh.'
+          : 'Kamu belum punya role yang dibutuhkan untuk daftar email. Hubungi admin kalau butuh akses.';
+      return interaction.reply({
+        embeds: [createWarningEmbed('Akses Ditolak', message)],
+        ephemeral: true
+      });
+    }
+
     // Check if user already has email registered
     const existingBinding = await EmailBinding.findOne({
       where: {
@@ -754,6 +772,22 @@ async function handleEmailRegister(interaction) {
  */
 async function handleEmailModalSubmit(interaction) {
   await interaction.deferReply({ ephemeral: true });
+
+  // Re-check eligibility on submit (defence-in-depth — modal could be open
+  // while admin removes the user's role or disables the feature).
+  const eligibility = await checkEmailEligibility({
+    serverId: interaction.guild.id,
+    userId: interaction.user.id
+  });
+  if (!eligibility.eligible) {
+    const message =
+      eligibility.reason === 'feature_disabled'
+        ? 'Fitur pendaftaran email sudah dinonaktifkan oleh admin.'
+        : 'Kamu tidak lagi punya role yang dibutuhkan untuk daftar email.';
+    return interaction.editReply({
+      embeds: [createWarningEmbed('Akses Ditolak', message)]
+    });
+  }
 
   const email = interaction.fields.getTextInputValue('email_input').trim();
 
