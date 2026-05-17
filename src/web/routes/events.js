@@ -22,7 +22,11 @@ function buildRouter() {
   router.get('/', (req, res) => {
     const token = readAuthCookie(req);
     const payload = token ? verifyToken(token) : null;
-    if (!payload || !payload.adminId) {
+    // Accept either the new Discord OAuth payload (dashboardUserId) or the
+    // legacy AdminUser payload (adminId) for backward compat with sessions
+    // issued before the OAuth migration.
+    const userId = payload?.dashboardUserId ?? payload?.adminId ?? null;
+    if (!payload || !userId) {
       res.status(401).json({ error: 'unauthorized' });
       return;
     }
@@ -44,7 +48,12 @@ function buildRouter() {
     // Initial hello so the client knows the connection is alive
     send('hello', {
       timestamp: new Date().toISOString(),
-      admin: { id: payload.adminId, username: payload.username || null }
+      user: {
+        id: userId,
+        discordId: payload.discordId || null,
+        username: payload.username || null,
+        isAdmin: Boolean(payload.isAdmin)
+      }
     });
 
     const onEvent = (evt) => {

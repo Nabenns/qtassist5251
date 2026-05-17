@@ -5,25 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex,nofollow" />
     <title>QTAssist Admin</title>
-    <!-- Inline theme bootstrap to avoid FOUC: apply the .dark class before
-         React hydrates so initial paint matches the chosen theme. -->
-    <script>
-      (function () {
-        try {
-          var stored = localStorage.getItem('qtassist-theme');
-          // Default to dark; light is opt-in via toggle.
-          var theme = stored === 'light' ? 'light' : 'dark';
-          if (theme === 'dark') document.documentElement.classList.add('dark');
-          var meta = document.querySelector('meta[name="theme-color"]');
-          if (!meta) {
-            meta = document.createElement('meta');
-            meta.setAttribute('name', 'theme-color');
-            document.head.appendChild(meta);
-          }
-          meta.setAttribute('content', theme === 'dark' ? '#08161c' : '#fafaf6');
-        } catch (_) {}
-      })();
-    </script>
+    <!-- Theme bootstrap — applied before React hydrates to avoid FOUC.
+         External file (not inline) so the strict CSP script-src 'self'
+         doesn't reject it. Loaded synchronously so the dark class is set
+         before the body paints. -->
+    <script src="/theme-bootstrap.js"></script>
   </head>
   <body>
     <div id="root"></div>
