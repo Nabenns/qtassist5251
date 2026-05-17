@@ -191,6 +191,7 @@ backed by the same database the bot uses.
 | Rotate JWT secret | Update `JWT_SECRET` in `.env` and `pm2 restart qtassist`. All existing dashboard sessions are invalidated |
 | Add/remove admin Discord role | Login as admin → **Pengaturan Admin** → tambah/hapus role |
 | Refresh admin cache | Cached automatically every hour, or by logging out and back in |
+| Test webhook | `curl -X POST https://your-domain.com/api/webhooks/louvin/<token> -H "Content-Type: application/json" -d '{"event":"test","data":{"transaction_id":"x"}}'` → expect 502 (verify_failed) |
 
 ---
 
@@ -205,6 +206,10 @@ backed by the same database the bot uses.
 - [ ] `.env` file is `chmod 600` and owned by the deploy user
 - [ ] Regular Postgres backups (Drive cron is enabled if `GOOGLE_BACKUP_FOLDER_ID` is set)
 - [ ] `VALETAX_DEBUG` is unset / `false` in production (it logs PII)
+- [ ] `LOUVIN_WEBHOOK_TOKEN` is at least 32 random bytes hex (16 bytes from crypto.randomBytes)
+- [ ] Webhook URL in Louvin Dashboard exactly matches `LOUVIN_WEBHOOK_TOKEN` value
+- [ ] `LOUVIN_ENABLED=false` until first end-to-end test passes
+- [ ] `VALETAX_DEBUG` and Louvin debug-style env vars unset in production
 
 ## 8. Database backups (automated to Google Drive)
 
@@ -263,3 +268,62 @@ You can also trigger a manual backup or restore from the dashboard at
 Restoring is destructive: every table is dropped and recreated from the
 SQL dump. The dashboard requires you to type `RESTORE` before the call
 goes through.
+
+---
+
+## 9. Louvin Payment Gateway setup (web shop)
+
+The dashboard at `/shop` lets non-admin users buy temporary roles via
+[Louvin Payment Gateway](https://louvin.dev). Setup is one-time, takes
+~5 minutes.
+
+### One-time setup
+
+1. **Create a Louvin project**
+   - Sign up at [louvin.dev](https://louvin.dev)
+   - Dashboard → **Proyek** → **Buat Proyek**
+   - Copy the API key (starts with `lv_`) → `.env` as `LOUVIN_API_KEY`
+
+2. **Generate webhook token**
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
+   ```
+   Set in `.env` as `LOUVIN_WEBHOOK_TOKEN`.
+
+3. **Register webhook URL in Louvin**
+   - Dashboard → **Proyek** → **Detail Proyek** → **Webhook URL**
+   - Set to: `https://your-domain.com/api/webhooks/louvin/<TOKEN>`
+     where `<TOKEN>` is your `LOUVIN_WEBHOOK_TOKEN` value.
+
+4. **Configure invite link & description**
+   ```env
+   DISCORD_INVITE_URL=https://discord.gg/your-server
+   LOUVIN_DEFAULT_DESCRIPTION=Pembelian role QTrades
+   ```
+
+5. **Enable & restart**
+   ```env
+   LOUVIN_ENABLED=true
+   ```
+   Then `pm2 restart qtassist`.
+
+### Configure products
+
+In the admin dashboard `/products`, edit each product to enable the
+desired payment methods (multi-checkbox). Default: QRIS only.
+
+### Test flow
+
+1. Login dashboard as a non-admin Discord user
+2. Sidebar → **Shop** → pick a product
+3. Pay via QRIS / VA
+4. Webhook fires → role auto-granted
+5. Verify in `/transactions` admin page (badge **LOUVIN**)
+
+### Troubleshooting
+
+- **Webhook not firing:** check Louvin Dashboard webhook log. Common
+  causes: nginx blocking POST, mismatched `LOUVIN_WEBHOOK_TOKEN`, or
+  webhook URL has wrong host.
+- **Refunds:** Louvin has no refund API. Refund manually via admin
+  `/transactions` (mark cancelled), then return funds out-of-band.

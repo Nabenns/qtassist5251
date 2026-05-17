@@ -1,4 +1,4 @@
-const { DataTypes } = require('sequelize');
+const { DataTypes, Op } = require('sequelize');
 const { sequelize } = require('../sequelize');
 
 const Transaction = sequelize.define('Transaction', {
@@ -72,6 +72,55 @@ const Transaction = sequelize.define('Transaction', {
     allowNull: true,
     field: 'paid_at',
     comment: 'When payment was approved'
+  },
+  paymentChannel: {
+    type: DataTypes.STRING(32),
+    allowNull: false,
+    defaultValue: 'manual_bank',
+    field: 'payment_channel',
+    comment: 'Payment gateway: manual_bank (admin proof) or louvin (auto)',
+    validate: {
+      isIn: {
+        args: [['manual_bank', 'louvin']],
+        msg: 'paymentChannel must be manual_bank or louvin'
+      }
+    }
+  },
+  louvinTransactionId: {
+    type: DataTypes.STRING(64),
+    allowNull: true,
+    field: 'louvin_transaction_id',
+    comment: 'UUID from Louvin /create-transaction response'
+  },
+  louvinPaymentType: {
+    type: DataTypes.STRING(32),
+    allowNull: true,
+    field: 'louvin_payment_type',
+    comment: 'qris, gopay, bni_va, etc'
+  },
+  louvinFee: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'louvin_fee',
+    comment: 'Louvin fee (IDR)'
+  },
+  louvinTotalPayment: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'louvin_total_payment',
+    comment: 'Total paid by customer (amount + fee)'
+  },
+  louvinPaymentNumber: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    field: 'louvin_payment_number',
+    comment: 'qr_string or va_number for display'
+  },
+  louvinExpiredAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'louvin_expired_at',
+    comment: 'Expiry timestamp from Louvin'
   }
 }, {
   tableName: 'transactions',
@@ -88,6 +137,18 @@ const Transaction = sequelize.define('Transaction', {
     },
     {
       fields: ['status']
+    },
+    {
+      fields: ['payment_channel']
+    },
+    {
+      // Louvin assigns a unique transaction UUID per transaction; we mirror
+      // that uniqueness here. Partial: only enforced when a louvin id is set
+      // (manual_bank rows leave this column NULL).
+      unique: true,
+      fields: ['louvin_transaction_id'],
+      where: { louvin_transaction_id: { [Op.ne]: null } },
+      name: 'idx_transactions_louvin_id'
     }
   ]
 });

@@ -68,6 +68,20 @@ export const api = {
   delete: (path, opts) => request(path, { ...opts, method: 'DELETE' })
 };
 
+api.shop = {
+  listProducts: () => api.get('/api/shop/products'),
+  getProduct: (id) => api.get(`/api/shop/products/${id}`),
+  checkout: (productId, paymentMethod) =>
+    api.post('/api/shop/checkout', { productId, paymentMethod }),
+  getTransaction: (orderId) =>
+    api.get(`/api/shop/transactions/${orderId}`),
+  recheckStatus: (orderId) =>
+    api.post(`/api/shop/transactions/${orderId}/recheck`),
+  myTransactions: ({ limit = 20, offset = 0 } = {}) =>
+    api.get(`/api/shop/my-transactions?limit=${limit}&offset=${offset}`),
+  pendingTransaction: () => api.get('/api/shop/pending')
+};
+
 // Currency / date helpers shared across pages.
 export function formatIDR(amount) {
   if (amount === null || amount === undefined) return '-';
@@ -97,4 +111,34 @@ export function formatDate(value) {
     timeZone: 'Asia/Jakarta',
     dateStyle: 'medium'
   });
+}
+
+export const PAYMENT_METHOD_LABELS = {
+  qris: 'QRIS',
+  gopay: 'GoPay',
+  shopeepay: 'ShopeePay',
+  bni_va: 'BNI Virtual Account',
+  bri_va: 'BRI Virtual Account',
+  permata_va: 'Permata Virtual Account',
+  cimb_niaga_va: 'CIMB Niaga Virtual Account'
+};
+
+export function paymentMethodLabel(code) {
+  return PAYMENT_METHOD_LABELS[code] || code;
+}
+
+/**
+ * Estimate Louvin fee for a given amount + method.
+ * QRIS / e-wallets: 0.7% + Rp 400.
+ * VA: Rp 6.500 flat.
+ */
+export function estimateLouvinFee(amount, method) {
+  if (!method) return 0;
+  if (['qris', 'gopay', 'shopeepay'].includes(method)) {
+    return Math.round(amount * 0.007) + 400;
+  }
+  if (['bni_va', 'bri_va', 'permata_va', 'cimb_niaga_va'].includes(method)) {
+    return 6500;
+  }
+  return 0;
 }

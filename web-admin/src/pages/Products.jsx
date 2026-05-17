@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pencil, RefreshCw, Package, Plus, Trash2 } from 'lucide-react';
-import { api, formatIDR, formatDateTime, ApiError } from '../api.js';
+import { api, formatIDR, formatDateTime, ApiError, paymentMethodLabel } from '../api.js';
 import { PageHeader } from '../components/ui/PageHeader.jsx';
 import { Card } from '../components/ui/Card.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
@@ -23,6 +23,16 @@ import {
   TableEmpty
 } from '../components/ui/Table.jsx';
 import { useToast } from '../components/ui/Toast.jsx';
+
+const ALL_METHODS = [
+  { value: 'qris', label: 'QRIS', fee: '0.7% + Rp 400' },
+  { value: 'gopay', label: 'GoPay', fee: '0.7% + Rp 400' },
+  { value: 'shopeepay', label: 'ShopeePay', fee: '0.7% + Rp 400' },
+  { value: 'bni_va', label: 'BNI VA', fee: 'Rp 6.500' },
+  { value: 'bri_va', label: 'BRI VA', fee: 'Rp 6.500' },
+  { value: 'permata_va', label: 'Permata VA', fee: 'Rp 6.500' },
+  { value: 'cimb_niaga_va', label: 'CIMB Niaga VA', fee: 'Rp 6.500' }
+];
 
 function formatDuration(ms) {
   const n = Number(ms);
@@ -116,16 +126,17 @@ export default function Products() {
               <TH>Harga</TH>
               <TH>Durasi</TH>
               <TH>Role ID</TH>
+              <TH>Metode</TH>
               <TH>Aktif</TH>
               <TH>Dibuat</TH>
               <TH align="right"></TH>
             </TR>
           </THead>
           {loading ? (
-            <TableLoading columns={7} rows={5} />
+            <TableLoading columns={8} rows={5} />
           ) : items.length === 0 ? (
             <TableEmpty
-              columns={7}
+              columns={8}
               icon={Package}
               title="Belum ada produk"
               description="Klik 'Produk baru' untuk membuat produk pertama."
@@ -146,6 +157,14 @@ export default function Products() {
                   <TD>{formatIDR(p.price)}</TD>
                   <TD>{formatDuration(p.duration)}</TD>
                   <TD className="font-mono text-xs">{p.roleId}</TD>
+                  <TD className="text-xs">
+                    {(p.paymentMethods && p.paymentMethods.length > 0
+                      ? p.paymentMethods
+                      : ['qris']
+                    )
+                      .map((m) => paymentMethodLabel(m))
+                      .join(', ')}
+                  </TD>
                   <TD>
                     {p.isActive ? (
                       <Badge tone="success" dot>Aktif</Badge>
@@ -235,6 +254,7 @@ function EditModal({ product, onClose, onSaved }) {
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState(0);
   const [isActive, setIsActive] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState(['qris']);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -243,18 +263,28 @@ function EditModal({ product, onClose, onSaved }) {
       setDescription(product.description || '');
       setPrice(product.price ?? 0);
       setIsActive(Boolean(product.isActive));
+      setPaymentMethods(
+        Array.isArray(product.paymentMethods) && product.paymentMethods.length > 0
+          ? product.paymentMethods
+          : ['qris']
+      );
     }
   }, [product]);
 
   async function handleSave() {
     if (!product) return;
+    if (paymentMethods.length === 0) {
+      toast.error('Pilih minimal 1 metode pembayaran');
+      return;
+    }
     setBusy(true);
     try {
       await api.patch(`/api/products/${product.id}`, {
         name: name.trim(),
         description,
         price: Number(price),
-        isActive
+        isActive,
+        paymentMethods
       });
       onSaved();
     } catch (err) {
@@ -284,6 +314,37 @@ function EditModal({ product, onClose, onSaved }) {
             value={price}
             onChange={(e) => setPrice(e.target.value)}
           />
+        </FormField>
+        <FormField label="Metode Pembayaran (Web Shop)" htmlFor="p-methods-edit">
+          <div className="space-y-1">
+            {ALL_METHODS.map((m) => {
+              const checked = paymentMethods.includes(m.value);
+              return (
+                <label
+                  key={m.value}
+                  className="flex cursor-pointer items-center gap-3 border border-border p-2 hover:bg-surface-2"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      const next = new Set(paymentMethods);
+                      if (e.target.checked) next.add(m.value);
+                      else next.delete(m.value);
+                      setPaymentMethods(Array.from(next));
+                    }}
+                  />
+                  <div className="flex-1">
+                    <div className="font-bold">{m.label}</div>
+                    <div className="text-xs text-muted-fg">Fee {m.fee}</div>
+                  </div>
+                </label>
+              );
+            })}
+            {paymentMethods.length === 0 && (
+              <div className="text-xs text-danger">Minimal 1 metode dipilih</div>
+            )}
+          </div>
         </FormField>
         <label className="flex items-center gap-2 text-sm text-fg">
           <input
@@ -319,6 +380,7 @@ function CreateModal({ open, onClose, onCreated }) {
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('30d');
   const [isActive, setIsActive] = useState(true);
+  const [paymentMethods, setPaymentMethods] = useState(['qris']);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -357,12 +419,17 @@ function CreateModal({ open, onClose, onCreated }) {
       setPrice('');
       setDuration('30d');
       setIsActive(true);
+      setPaymentMethods(['qris']);
     }
   }, [open]);
 
   async function handleSubmit() {
     if (!guildId || !roleId || !name.trim() || !price || !duration) {
       toast.warning('Lengkapi semua field wajib');
+      return;
+    }
+    if (paymentMethods.length === 0) {
+      toast.error('Pilih minimal 1 metode pembayaran');
       return;
     }
     setBusy(true);
@@ -374,7 +441,8 @@ function CreateModal({ open, onClose, onCreated }) {
         description,
         price: Number(price),
         duration,
-        isActive
+        isActive,
+        paymentMethods
       });
       if (res.warning) {
         toast.warning('Produk dibuat dengan peringatan', { description: res.warning });
@@ -446,6 +514,37 @@ function CreateModal({ open, onClose, onCreated }) {
             <Input value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="30d" />
           </FormField>
         </div>
+        <FormField label="Metode Pembayaran (Web Shop)" htmlFor="p-methods-create">
+          <div className="space-y-1">
+            {ALL_METHODS.map((m) => {
+              const checked = paymentMethods.includes(m.value);
+              return (
+                <label
+                  key={m.value}
+                  className="flex cursor-pointer items-center gap-3 border border-border p-2 hover:bg-surface-2"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      const next = new Set(paymentMethods);
+                      if (e.target.checked) next.add(m.value);
+                      else next.delete(m.value);
+                      setPaymentMethods(Array.from(next));
+                    }}
+                  />
+                  <div className="flex-1">
+                    <div className="font-bold">{m.label}</div>
+                    <div className="text-xs text-muted-fg">Fee {m.fee}</div>
+                  </div>
+                </label>
+              );
+            })}
+            {paymentMethods.length === 0 && (
+              <div className="text-xs text-danger">Minimal 1 metode dipilih</div>
+            )}
+          </div>
+        </FormField>
         <label className="flex items-center gap-2 text-sm text-fg">
           <input
             type="checkbox"

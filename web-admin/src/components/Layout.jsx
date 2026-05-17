@@ -15,6 +15,8 @@ import {
   Users as UsersIcon,
   Shield,
   IdCard,
+  ShoppingCart,
+  History,
   LogOut,
   Moon,
   Sun,
@@ -47,7 +49,9 @@ function getNavSections({ isAdmin }) {
       {
         label: 'Akun Saya',
         items: [
-          { to: '/daftar-ib', label: 'Daftar IB', icon: IdCard, end: true },
+          { to: '/shop', label: 'Shop', icon: ShoppingCart },
+          { to: '/daftar-ib', label: 'Daftar IB', icon: IdCard },
+          { to: '/my-purchases', label: 'Riwayat Pembelian', icon: History },
           { to: '/my-email', label: 'Email Saya', icon: Mail }
         ]
       }

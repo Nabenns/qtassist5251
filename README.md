@@ -59,6 +59,16 @@ Discord bot + admin web dashboard untuk QTrades. Mengelola temporary role berbay
 - Retention otomatis: 30 daily + 12 monthly
 - Backup/restore manual dari dashboard (download, restore, restore-from-upload)
 
+### ✅ Web Shop & Louvin Payment Gateway
+- Page `/shop` di dashboard untuk user non-admin (login via Discord OAuth)
+- Beli temporary role online dengan pembayaran otomatis via [Louvin](https://louvin.dev)
+- Support 7 metode pembayaran (QRIS, GoPay, ShopeePay, BNI/BRI/Permata/CIMB VA), admin pilih per produk
+- Verifikasi guild membership real-time saat checkout
+- Auto-grant role setelah webhook settled (no admin intervention)
+- Cron auto-expire transaksi pending stale tiap 5 menit
+- Page `/my-purchases` untuk riwayat user (gabungan Discord manual + web Louvin)
+- Coexist dengan Discord manual bank transfer (existing) — keduanya jalan paralel
+
 ## Commands
 
 ### 👨‍💼 Admin Commands
@@ -89,6 +99,8 @@ Discord bot + admin web dashboard untuk QTrades. Mengelola temporary role berbay
 ### 👤 User Commands
 - `/help` - Tampilkan semua command yang tersedia
 - `/my-email` - Cek email terdaftar untuk akses konten
+
+> **Catatan Shop:** User non-admin login dashboard → sidebar dapat menu Shop. Beli role online via Louvin Payment Gateway, role otomatis di-grant tanpa admin approval.
 
 > **Catatan:** Cek role temporary aktif dan riwayat pembelian dilakukan via tombol di channel **My Info** (di-setup admin pakai `/myinfo-setup`), bukan slash command.
 
@@ -360,6 +372,7 @@ qtassist5251/
 - **Recharts** — Analytics charts
 - **Radix UI** — Dialog, dropdown, tooltip primitives
 - **Server-Sent Events** — Realtime updates dari bot (`/api/events`)
+- **qrcode.react** — Render QR code untuk QRIS / GoPay payment
 
 ## Google Sheets Structure
 
@@ -431,9 +444,21 @@ Metrics & visualizations:
    - Tidak match → user diminta cek ulang
 5. **Status view:** User verified bisa lihat volume harian + status role
 
+### Web Purchase Flow (Louvin)
+1. User non-admin login dashboard → sidebar Shop
+2. Pilih produk → modal pilih metode pembayaran (QRIS/VA/dll)
+3. Klik Bayar → backend verify guild membership fresh
+4. Bot create transaction (paymentChannel=louvin) + call Louvin API
+5. Frontend tampilkan QR code / nomor VA + countdown expiry
+6. User bayar via e-wallet/bank
+7. Louvin webhook fires → bot verify ke `/check-status` (defense in depth)
+8. Status `settled` → `transactionService.approveTransaction()` grant role + DM + sheets sync
+9. SSE event ke FE → redirect ke `/my-purchases` dengan toast success
+
 ### Auto-Sync & Monitoring
 - **Every 1 minute:** Check & remove expired roles
 - **Every 5 minutes:** Send expiry notifications (24h & 1h)
+- **Every 5 minutes:** Expire pending Louvin transactions yang lewat `louvin_expired_at`
 - **Every 10 minutes:** Sync Active Users to Google Sheets
 - **Every 30 minutes:** Expire old pending transactions
 - **Every 1 hour:** Sample IB volume per akun verified, grant/revoke role IB
@@ -470,6 +495,11 @@ Lihat [.env.example](.env.example) untuk template lengkap.
 - `VALETAX_BASE_URL` - Base URL Valetax API
 - `VALETAX_DEBUG` - `true` untuk verbose log (jangan aktifkan di production, log PII)
 - `COOKIE_ENCRYPTION_KEY` - Fallback ke `JWT_SECRET` kalau kosong
+- `LOUVIN_ENABLED` - `true` untuk aktifkan web shop Louvin
+- `LOUVIN_API_KEY` - API key dari [louvin.dev](https://louvin.dev) Dashboard
+- `LOUVIN_WEBHOOK_TOKEN` - Random hex token untuk webhook path verification
+- `LOUVIN_DEFAULT_DESCRIPTION` - Deskripsi default di Louvin transaction
+- `DISCORD_INVITE_URL` - Invite link untuk user yang belum di guild
 
 ## Troubleshooting
 
@@ -507,6 +537,23 @@ Lihat [.env.example](.env.example) untuk template lengkap.
 - Cek `VALETAX_MODE=live` dan token Valetax di-paste fresh dari dashboard "Pengaturan IB"
 - Aktifkan `VALETAX_DEBUG=true`, restart bot, lihat `LOOKUP-SAMPLE-KEYS` log
 - Bandingkan key yang muncul dengan `extractAccountNumber` candidate di `src/services/valetaxService.js`
+
+### Webhook Louvin tidak fire
+- Cek webhook URL di Louvin Dashboard sesuai `${DASHBOARD_BASE_URL}/api/webhooks/louvin/<TOKEN>`
+- Cek `LOUVIN_WEBHOOK_TOKEN` di `.env` match dengan token di URL
+- Test manual: `curl -X POST <url> -H "Content-Type: application/json" -d '{}'` → harus 400 invalid_payload (bukan 404)
+- Cek pm2 logs untuk `Webhook for unknown` atau `Webhook verify failed`
+
+### Pembayaran sukses tapi role tidak granted
+- Cek `LOUVIN_ENABLED=true` di `.env`
+- Cek user masih di guild Discord
+- Cek bot online (cek `/api/health`)
+- Cek `/transactions` di admin dashboard → kalau status pending tapi sudah lewat expire, manual approve
+- Cek log untuk `approveTransaction failed`
+
+### Checkout error 403 not_in_guild
+- User belum join Discord QTrades
+- Set `DISCORD_INVITE_URL` di `.env` agar tombol Join Discord muncul di shop
 
 ### Database error
 - Pastikan PostgreSQL running

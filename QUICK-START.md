@@ -34,6 +34,18 @@ Quick reference untuk operator + developer. Untuk panduan lengkap lihat
 4. Klik **Upload Bukti Bayar** → upload screenshot
 5. Tunggu admin review (notifikasi via DM)
 
+### Beli Produk via Web Shop (Louvin)
+1. Login dashboard via Discord OAuth
+2. Sidebar → **Shop**
+3. Pilih produk → klik **Beli**
+4. Pilih metode pembayaran (QRIS/GoPay/VA/dll)
+5. Bayar via e-wallet atau transfer ke nomor VA
+6. Role otomatis di-grant ke akun Discord kamu
+7. Cek status di **Riwayat Pembelian**
+
+> **Note:** Discord shop dengan transfer manual masih jalan paralel di
+> shop channel Discord. Pilih sesuai preferensi.
+
 ### Daftar IB (Introducing Broker)
 1. Login dashboard → otomatis di-redirect ke `/daftar-ib`
 2. **Step 1:** Klik link affiliate Valetax untuk register
@@ -79,6 +91,10 @@ Quick reference untuk operator + developer. Untuk panduan lengkap lihat
 - `1w` = 1 minggu
 - `30d` = 30 hari
 - `1d12h30m` = 1 hari 12 jam 30 menit (kombinasi)
+
+> **Web Shop Configuration:** Setiap produk punya `paymentMethods` array.
+> Edit produk di `/products` → centang metode yang mau di-enable. Minimum
+> 1 metode wajib dipilih. Default saat create: QRIS only.
 
 ### Akses Admin Dashboard
 - **Bootstrap (sekali aja):** Tabel `admin_roles` kosong → semua user
@@ -153,6 +169,9 @@ ACCOUNT_HOLDERS=QTrades Official|QTrades Backup
 - `VALETAX_MODE` — `live` untuk real API, kosong untuk mock
 - `VALETAX_BASE_URL`, `VALETAX_DEBUG`
 - `NODE_ENV=production` di server
+- `LOUVIN_ENABLED`, `LOUVIN_API_KEY`, `LOUVIN_WEBHOOK_TOKEN`,
+  `LOUVIN_DEFAULT_DESCRIPTION` — Web shop Louvin payment gateway
+- `DISCORD_INVITE_URL` — Invite link untuk user yang belum di guild
 
 Lihat [.env.example](.env.example) untuk template lengkap.
 

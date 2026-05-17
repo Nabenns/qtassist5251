@@ -127,3 +127,27 @@ client registers and the bot calls Valetax:
   is no documented refresh endpoint; the operator must paste in a new
   token periodically. A future improvement would be to drive a
   Playwright-based headless re-login when the token goes stale.
+
+## Web Shop / Louvin: Follow-ups
+
+**Status:** Phase 1 shipped (one-off purchase, 7 methods, manual + Louvin coexist).
+
+### Nice-to-have future enhancements:
+
+- [ ] Subscription / recurring payment via Louvin Subscription API
+      (saat ini cuma QRIS via email reminder, ga seamless dengan flow kita)
+- [ ] Refund flow di admin dashboard — mark cancelled + log + admin
+      manual return funds (Louvin tidak punya refund API)
+- [ ] Sandbox / mock mode Louvin untuk dev tanpa bayar real
+      (`LOUVIN_DEV_MOCK=true` → bypass real API, fake settled events)
+- [ ] HMAC signature verification kalau Louvin tambah feature itu
+      (saat ini cuma path token + check-status verify)
+- [ ] "Beli untuk teman" — input Discord ID lain saat checkout
+- [ ] Multi-guild support — per-guild Louvin API key + project
+- [ ] Payment method usage analytics di dashboard (which method paling
+      sering dipakai user)
+- [ ] Channel breakdown di Google Sheets sync (manual_bank vs louvin)
+- [ ] `inGuild` field di /api/auth/me response (sekarang FE Shop page
+      mengandalkan checkout endpoint untuk validate)
+- [ ] Encryption at rest untuk QR string / VA number kalau ada compliance
+      requirement (saat ini low-risk: short-lived + public-by-design)
