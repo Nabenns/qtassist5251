@@ -148,6 +148,29 @@ function buildRouter({ getDiscordClient }) {
         });
       }
 
+      // Wizard step-completion guard. Skipped for legacy accounts that already
+      // have a brokerAccountNumber (mid-retry users from before this feature
+      // landed) so they can still submit retries without first running the
+      // wizard backfill.
+      const existing = await IbAccount.findOne({
+        where: { serverId, userId: req.session.discordId }
+      });
+      const isLegacyMidFlow = existing && existing.brokerAccountNumber !== null;
+      if (!isLegacyMidFlow) {
+        if (!existing || !existing.linkClickedAt) {
+          return res.status(412).json({
+            error: 'step_1_incomplete',
+            message: 'Selesaikan step 1 (daftar Valetax) dulu.'
+          });
+        }
+        if (!existing.depositConfirmedAt) {
+          return res.status(412).json({
+            error: 'step_2_incomplete',
+            message: 'Selesaikan step 2 (konfirmasi deposit) dulu.'
+          });
+        }
+      }
+
       const client = getDiscordClient();
 
       // Prevent the same broker account from being claimed by two
@@ -623,6 +646,8 @@ function serializeAccount(a) {
     serverId: a.serverId,
     userId: a.userId,
     brokerAccountNumber: a.brokerAccountNumber,
+    linkClickedAt: a.linkClickedAt,
+    depositConfirmedAt: a.depositConfirmedAt,
     status: a.status,
     retryCount: a.retryCount,
     nextRetryAt: a.nextRetryAt,

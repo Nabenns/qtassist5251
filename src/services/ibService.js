@@ -78,6 +78,28 @@ async function submitAccount({ serverId, userId, brokerAccountNumber }) {
     throw new Error('Sistem IB belum diaktifkan untuk server ini.');
   }
 
+  // First check if there's a wizard pre-account row (broker_account_number IS NULL).
+  // This is the row created in /daftar-ib step 1, with linkClickedAt and possibly
+  // depositConfirmedAt set. If found, upgrade it to a real submission rather than
+  // creating a new row — preserves the wizard tracking timestamps.
+  const preAccount = await IbAccount.findOne({
+    where: { serverId, userId, brokerAccountNumber: null }
+  });
+
+  if (preAccount) {
+    // Upgrade pre-account to real submission. Preserve linkClickedAt + depositConfirmedAt.
+    await preAccount.update({
+      brokerAccountNumber: acctNumber,
+      status: 'pending',
+      retryCount: 0,
+      nextRetryAt: new Date(),
+      lastError: null,
+      lastCheckResponse: null
+    });
+    return { account: preAccount, alreadyVerified: false, alreadyPending: false, reset: false };
+  }
+
+  // Otherwise: existing legacy flow — find or create by full triple.
   const [record, created] = await IbAccount.findOrCreate({
     where: { serverId, userId, brokerAccountNumber: acctNumber },
     defaults: {
