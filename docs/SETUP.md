@@ -1,12 +1,27 @@
 # Setup Guide - QTAssist Discord Bot
 
+> **⚠️ Legacy doc.** Panduan ini ditulis untuk Phase 1 (core temprole only)
+> dan tidak mencakup: web admin dashboard, Discord OAuth login, manual
+> bank transfer payment, IB Valetax integration, atau backup ke Google
+> Drive.
+>
+> **Untuk panduan lengkap & terbaru:**
+> - **Local development:** [../README.md](../README.md)
+> - **Production VPS deployment:** [../deploy/README.md](../deploy/README.md)
+> - **Quick reference:** [../QUICK-START.md](../QUICK-START.md)
+>
+> Bagian Discord bot setup, PostgreSQL setup, dan basic command usage
+> di bawah masih akurat dan bisa dipakai sebagai pelengkap.
+
+---
+
 Complete setup guide for deploying the QTAssist Discord Bot.
 
 ## Prerequisites
 
-- Node.js v16.9.0 or higher
+- Node.js v18.0.0 or higher
 - PostgreSQL 12 or higher
-- Discord Bot Token
+- Discord Bot Token + OAuth2 Client (Client ID & Secret)
 - VPS or local server for hosting
 
 ## Step 1: Clone Repository
@@ -44,10 +59,14 @@ In the Bot section, scroll down to "Privileged Gateway Intents":
 - ✅ Enable "SERVER MEMBERS INTENT"
 - ✅ Enable "MESSAGE CONTENT INTENT"
 
-### 3.4 Get Client ID
+### 3.4 Get Client ID & Secret (untuk OAuth dashboard)
 
 1. Go to "OAuth2" > "General" in the left sidebar
-2. Copy the "CLIENT ID" (you'll need this for `.env`)
+2. Copy "CLIENT ID" → `.env` sebagai `DISCORD_CLIENT_ID`
+3. Reset & copy "CLIENT SECRET" → `.env` sebagai `DISCORD_CLIENT_SECRET`
+4. Tambahkan Redirect URI: `${DASHBOARD_BASE_URL}/api/auth/discord/callback`
+   - Dev: `http://localhost:3000/api/auth/discord/callback`
+   - Production: `https://your-domain.com/api/auth/discord/callback`
 
 ### 3.5 Invite Bot to Server
 
@@ -57,15 +76,12 @@ In the Bot section, scroll down to "Privileged Gateway Intents":
    - ✅ `applications.commands`
 3. Select bot permissions:
    - ✅ Manage Roles
-   - ✅ Kick Members
-   - ✅ Ban Members
-   - ✅ Manage Messages
+   - ✅ Manage Channels
    - ✅ Send Messages
    - ✅ Send Messages in Threads
    - ✅ Embed Links
    - ✅ Attach Files
    - ✅ Read Message History
-   - ✅ Add Reactions
    - ✅ Use Slash Commands
 4. Copy the generated URL and open it in your browser
 5. Select your server and authorize
@@ -84,8 +100,11 @@ In the Bot section, scroll down to "Privileged Gateway Intents":
 **Ubuntu/Debian:**
 ```bash
 sudo apt update
-sudo apt install postgresql postgresql-contrib
+sudo apt install -y postgresql postgresql-contrib postgresql-client
 ```
+
+> `postgresql-client` (`pg_dump` & `psql`) wajib untuk fitur backup/restore
+> dashboard.
 
 **macOS:**
 ```bash
@@ -122,37 +141,14 @@ GRANT ALL PRIVILEGES ON DATABASE qtassist_bot TO qtassist;
 cp .env.example .env
 ```
 
-2. Edit `.env` with your favorite text editor:
+2. Edit `.env` dan isi semua nilai yang dibutuhkan. Lihat
+   [`.env.example`](../.env.example) untuk daftar lengkap (Discord, DB,
+   payment channels, bank accounts, JWT secret, OAuth dashboard, dll.)
+
+Generate `JWT_SECRET`:
+
 ```bash
-nano .env
-```
-
-3. Fill in all required values:
-
-```env
-# Discord Bot Configuration
-DISCORD_TOKEN=your_bot_token_here
-DISCORD_CLIENT_ID=your_client_id_here
-DISCORD_GUILD_ID=your_server_guild_id_here
-
-# PostgreSQL Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=qtassist_bot
-DB_USER=postgres
-DB_PASSWORD=your_database_password
-
-# Google Sheets API Configuration (Phase 3 - leave empty for now)
-GOOGLE_SERVICE_ACCOUNT_EMAIL=
-GOOGLE_PRIVATE_KEY=
-GOOGLE_SPREADSHEET_ID=
-
-# Bot Configuration (get these channel IDs after bot is running)
-MOD_LOG_CHANNEL_ID=
-TEMP_ROLE_NOTIFICATION_CHANNEL_ID=
-
-# Environment
-NODE_ENV=development
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
 ### How to get Channel IDs:
@@ -160,23 +156,30 @@ NODE_ENV=development
 2. Right-click any channel
 3. Click "Copy Channel ID"
 
-## Step 6: Deploy Slash Commands
+## Step 6: Build Dashboard SPA
+
+```bash
+npm run build:web
+```
+
+Builds `web-admin/` ke `web-admin/dist/` yang nantinya di-serve oleh
+Express.
+
+## Step 7: Deploy Slash Commands
 
 ```bash
 npm run deploy
 ```
 
-You should see output like:
+Output:
 ```
 ✅ Loaded command: temprole-add
 ✅ Loaded command: temprole-remove
-✅ Loaded command: temprole-list
-✅ Loaded command: temprole-extend
-🚀 Started refreshing 4 application (/) commands.
-✅ Successfully reloaded 4 guild (/) commands.
+...
+🚀 Successfully reloaded N guild (/) commands.
 ```
 
-## Step 7: Start the Bot
+## Step 8: Start the Bot
 
 ### Development Mode (with auto-reload):
 ```bash
@@ -193,107 +196,28 @@ You should see:
 🚀 Starting QTAssist Discord Bot...
 ✅ Database connection established successfully.
 ✅ Database models synchronized.
-✅ Loaded command: temprole-add
-✅ Loaded command: temprole-remove
-✅ Loaded command: temprole-list
-✅ Loaded command: temprole-extend
-✅ Loaded event: ready
-✅ Loaded event: interactionCreate
+✅ Loaded command: ...
+✅ Loaded event: ready / interactionCreate / messageCreatePaymentProof
 ⏰ Starting cron jobs...
 ✅ Cron jobs started successfully.
+🌐 Admin web server listening on port 3000
 ✅ Logged in as YourBotName#1234
-📊 Serving 1 server(s)
 ✅ Bot is ready!
 ```
 
-## Step 8: Test the Bot
+Buka `http://localhost:3000` untuk akses dashboard. Login via Discord OAuth.
+
+## Step 9: Test the Bot
 
 1. Go to your Discord server
-2. Type `/` and you should see the bot's commands
-3. Try `/temprole-add` to test:
-   - Select a user
-   - Select a role (make sure bot's role is higher in role hierarchy)
-   - Enter duration (e.g., `30m`, `1h`, `1d`)
-   - Add a reason (optional)
+2. Type `/` → semua command bot harus muncul
+3. Coba `/temprole-add` untuk smoke test
 
-## Step 9: Production Deployment (VPS)
+## Step 10: Production Deployment (VPS)
 
-### Using PM2 (Recommended)
-
-1. Install PM2:
-```bash
-npm install -g pm2
-```
-
-2. Start bot with PM2:
-```bash
-pm2 start src/index.js --name qtassist-bot
-```
-
-3. Save PM2 configuration:
-```bash
-pm2 save
-```
-
-4. Setup PM2 to start on boot:
-```bash
-pm2 startup
-```
-
-5. Useful PM2 commands:
-```bash
-pm2 status              # Check status
-pm2 logs qtassist-bot   # View logs
-pm2 restart qtassist-bot # Restart bot
-pm2 stop qtassist-bot   # Stop bot
-pm2 monit               # Monitor resources
-```
-
-### Using systemd (Alternative)
-
-1. Create service file:
-```bash
-sudo nano /etc/systemd/system/qtassist-bot.service
-```
-
-2. Add configuration:
-```ini
-[Unit]
-Description=QTAssist Discord Bot
-After=network.target
-
-[Service]
-Type=simple
-User=your_user
-WorkingDirectory=/path/to/qtassist5251
-ExecStart=/usr/bin/node src/index.js
-Restart=always
-RestartSec=10
-StandardOutput=syslog
-StandardError=syslog
-SyslogIdentifier=qtassist-bot
-
-[Install]
-WantedBy=multi-user.target
-```
-
-3. Start service:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable qtassist-bot
-sudo systemctl start qtassist-bot
-sudo systemctl status qtassist-bot
-```
-
-## Step 10: Setup Notification Channels (Optional)
-
-1. Create a text channel in Discord (e.g., `#bot-logs` or `#mod-logs`)
-2. Copy the channel ID (right-click > Copy Channel ID)
-3. Update `.env`:
-```env
-TEMP_ROLE_NOTIFICATION_CHANNEL_ID=your_channel_id
-```
-4. Restart the bot
+Untuk production deployment lengkap (pm2 + nginx + Let's Encrypt + Drive
+backup), lihat **[../deploy/README.md](../deploy/README.md)**. Doc itu
+adalah source of truth untuk production.
 
 ## Troubleshooting
 
@@ -317,21 +241,24 @@ TEMP_ROLE_NOTIFICATION_CHANNEL_ID=your_channel_id
 - Make sure bot's role is higher than the roles it's trying to assign
 - In Server Settings > Roles, drag bot's role above other roles
 
+### Login dashboard error `bot_not_ready`
+- Bot belum login Discord saat OAuth callback masuk
+- Tunggu sampai bot fully online
+- Pastikan user sudah join guild Discord
+
 ## Next Steps
 
-- Configure notification channels
-- Test all commands thoroughly
-- Setup database backups
-- Monitor bot performance
-- Proceed to Phase 2 (Role Templates & Bulk Operations)
+Setelah bot jalan:
+
+- Setup channel notifikasi opsional (`MOD_LOG_CHANNEL_ID`,
+  `TEMP_ROLE_NOTIFICATION_CHANNEL_ID`, `PAYMENT_REVIEW_CHANNEL_ID`,
+  `PAYMENT_UPLOAD_CHANNEL_ID`)
+- Konfigurasi Google Service Account untuk Sheets sync + Drive backup
+- Production deploy ke VPS via [../deploy/README.md](../deploy/README.md)
 
 ## Support
 
-For issues or questions:
-- Check logs: `pm2 logs qtassist-bot`
-- Review [README.md](../README.md)
-- Check Discord API status: https://discordstatus.com/
+- Logs: `pm2 logs qtassist` (production) atau console (dev)
+- [Discord API status](https://discordstatus.com/)
+- [README.md](../README.md) untuk overview lengkap
 
----
-
-✅ Phase 1 Setup Complete!

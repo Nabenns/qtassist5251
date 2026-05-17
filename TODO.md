@@ -116,7 +116,8 @@ client registers and the bot calls Valetax:
 - [ ] Web admin → **Pengaturan IB** → paste the token, set Partner ID
       (your `userId`, e.g. 895830), save
 - [ ] Click **Tes token** — should report "OK"
-- [ ] Run `/ib-setup` in Discord
+- [ ] Have a test user (non-admin) login dashboard → wizard `/daftar-ib`
+      should auto-open. Walk through Step 1 → Step 2 → Step 3.
 - [ ] When the token expires (~1 h of inactivity), the dashboard's
       cookie-status badge turns red; paste a fresh token
 

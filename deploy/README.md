@@ -56,28 +56,21 @@ Fill these required values in `.env`:
 | Variable | Notes |
 |---|---|
 | `DISCORD_TOKEN` | Bot token from Discord Developer Portal |
-| `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID` | App ID and target server ID |
+| `DISCORD_CLIENT_ID` | App ID (also used for OAuth login) |
+| `DISCORD_CLIENT_SECRET` | OAuth2 client secret for dashboard login |
+| `DISCORD_GUILD_ID` | Target server ID |
+| `DASHBOARD_BASE_URL` | Public base URL of the dashboard. Discord redirect URI = `${DASHBOARD_BASE_URL}/api/auth/discord/callback` — register the exact same URL in Developer Portal → OAuth2 → Redirects |
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Postgres credentials |
 | `PAYMENT_REVIEW_CHANNEL_ID`, `PAYMENT_UPLOAD_CHANNEL_ID` | Discord channels |
 | `BANK_NAMES`, `ACCOUNT_NUMBERS`, `ACCOUNT_HOLDERS` | Pipe-separated bank info |
 | `WEB_PORT` | Port for admin web (default 3000) |
-| `ADMIN_USERNAME` | First admin username |
-| `ADMIN_PASSWORD_HASH` | bcrypt hash, see below |
-| `JWT_SECRET` | Random hex string, see below |
+| `JWT_SECRET` | Random hex string, min 32 chars (48 bytes hex recommended) — see below |
 | `NODE_ENV` | Set to `production` |
 
-Optional values: `GOOGLE_*` (Sheets sync), `MOD_LOG_CHANNEL_ID`,
-`TEMP_ROLE_NOTIFICATION_CHANNEL_ID`, `QTRADES_LOGO_URL`,
-`SESSION_COOKIE_NAME`.
-
-### Generate the admin password hash
-
-```bash
-npm run hash-password -- 'yourStrongPasswordHere'
-```
-
-Copy the output line into `.env` as `ADMIN_PASSWORD_HASH=...`. The plaintext
-password is never stored anywhere.
+Optional values: `GOOGLE_*` (Sheets sync + Drive backup), `GOOGLE_BACKUP_FOLDER_ID`,
+`MOD_LOG_CHANNEL_ID`, `TEMP_ROLE_NOTIFICATION_CHANNEL_ID`, `QTRADES_LOGO_URL`,
+`SESSION_COOKIE_NAME`, `VALETAX_MODE`, `VALETAX_BASE_URL`, `VALETAX_DEBUG`,
+`COOKIE_ENCRYPTION_KEY`.
 
 ### Generate a JWT secret
 
@@ -86,7 +79,34 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
 Copy the output into `.env` as `JWT_SECRET=...`. Treat it like a password —
-never commit it.
+never commit it. Rotating this value invalidates every active dashboard
+session.
+
+### Dashboard authentication
+
+The dashboard uses **Discord OAuth2** — there is no separate admin
+username/password. Make sure:
+
+1. In Discord Developer Portal → OAuth2 → Redirects, add an entry that
+   exactly matches `${DASHBOARD_BASE_URL}/api/auth/discord/callback`.
+2. `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` in `.env` come from
+   the same Discord application.
+
+#### Admin access
+
+- **Bootstrap:** while the `admin_roles` table is empty, anyone with the
+  Discord `ADMINISTRATOR` permission in the configured guild is granted
+  dashboard admin access.
+- **After bootstrap:** only members of the Discord roles listed in
+  `admin_roles` can log in as admin. Manage that list from the dashboard
+  under **Pengaturan Admin**.
+- **Cache:** the admin role snapshot is refreshed from Discord every
+  hour and on every login.
+
+#### User access
+
+Non-admin users who log in are redirected to `/daftar-ib` (the IB
+registration wizard). They cannot reach the admin pages.
 
 ---
 
@@ -149,11 +169,15 @@ your VPS public IP before running certbot.
 ## 5. Verify
 
 Open `https://your-domain.com/` in a browser. You should see the QTAssist
-admin login screen. Log in with the username and password you set above.
+login screen. Click **Login dengan Discord**, authorize the bot's OAuth
+app, and you'll land on the dashboard if your Discord account meets the
+admin criteria above (bootstrap admin permission while `admin_roles` is
+empty, or a member of one of the registered admin roles).
 
 The dashboard shows revenue, pending reviews, recent transactions, and lets
-you approve/reject payments, edit products, manage temp roles, and inspect
-email bindings — all backed by the same database the bot uses.
+you approve/reject payments, edit products, manage temp roles, inspect
+email bindings, register IB clients, and trigger database backups — all
+backed by the same database the bot uses.
 
 ---
 
@@ -164,9 +188,9 @@ email bindings — all backed by the same database the bot uses.
 | View logs | `pm2 logs qtassist` |
 | Restart bot | `pm2 restart qtassist` |
 | Update code | `git pull && npm install && npm run build:web && pm2 restart qtassist` |
-| Rotate admin password | `npm run hash-password -- 'newPassword'` then update `.env` and `pm2 restart qtassist` |
-| Rotate JWT secret | Update `JWT_SECRET` in `.env` and restart. All existing sessions are invalidated |
-| Add second admin | Insert a row into the `admin_users` table with bcrypt hash. (Future: a UI for this) |
+| Rotate JWT secret | Update `JWT_SECRET` in `.env` and `pm2 restart qtassist`. All existing dashboard sessions are invalidated |
+| Add/remove admin Discord role | Login as admin → **Pengaturan Admin** → tambah/hapus role |
+| Refresh admin cache | Cached automatically every hour, or by logging out and back in |
 
 ---
 
@@ -176,10 +200,11 @@ email bindings — all backed by the same database the bot uses.
 - [ ] UFW or another firewall: only allow 22, 80, 443 inbound
 - [ ] PostgreSQL `pg_hba.conf` set to `local` or `host 127.0.0.1/32` only
 - [ ] `JWT_SECRET` is at least 48 random bytes hex (96 chars)
-- [ ] Password hash uses bcrypt (default cost 10)
+- [ ] Discord OAuth redirect URI in Developer Portal matches `${DASHBOARD_BASE_URL}/api/auth/discord/callback` exactly
 - [ ] Discord bot has only the permissions it actually needs
 - [ ] `.env` file is `chmod 600` and owned by the deploy user
-- [ ] Regular Postgres backups (`pg_dump`) or volume snapshots
+- [ ] Regular Postgres backups (Drive cron is enabled if `GOOGLE_BACKUP_FOLDER_ID` is set)
+- [ ] `VALETAX_DEBUG` is unset / `false` in production (it logs PII)
 
 ## 8. Database backups (automated to Google Drive)
 

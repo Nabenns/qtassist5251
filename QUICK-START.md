@@ -1,200 +1,277 @@
 # Quick Start Guide - QTAssist Discord Bot
 
-**Repository**: https://github.com/Nabenns/qtassist5251.git
+**Repository:** https://github.com/Nabenns/qtassist5251.git
+
+Quick reference untuk operator + developer. Untuk panduan lengkap lihat
+[README.md](README.md), [deploy/README.md](deploy/README.md), dan
+[PROGRESS.md](PROGRESS.md).
 
 ---
 
-## For Bot Users
+## For End Users
 
-### Available Commands (Phase 1)
+### Login Dashboard
+- Buka URL dashboard (contoh: `https://qtrades.bensserver.cloud`)
+- Klik **Login dengan Discord** → authorize OAuth2
+- Admin → masuk dashboard penuh
+- User biasa → diarahkan ke wizard `/daftar-ib`
 
-All commands use Discord's slash command system - type `/` to see available commands:
+### Slash Commands
 
-#### Temporary Role Management
+**Untuk semua user:**
+- `/help` — list semua command
+- `/my-email` — cek email yang terdaftar untuk akses konten
 
-**`/temprole-add`**
-- Assign temporary role to user with automatic expiry
-- Example: `/temprole-add user:@john role:@VIP duration:7d reason:Event winner`
-- Supports: minutes (m), hours (h), days (d), weeks (w)
-- Combinations: `1d12h30m` = 1 day, 12 hours, 30 minutes
+**Untuk cek role / riwayat pembelian:**
+- Tidak via slash command
+- Buka channel **My Info** yang di-setup admin → klik tombol
+  🎭 Cek Role atau 🛒 Riwayat Pembelian
 
-**`/temprole-remove`**
-- Remove temporary role before it expires
-- Example: `/temprole-remove user:@john role:@VIP`
+### Beli Produk
+1. Klik tombol **Beli** di shop channel
+2. Bot tampilkan detail rekening bank (bisa multiple)
+3. Transfer ke salah satu rekening
+4. Klik **Upload Bukti Bayar** → upload screenshot
+5. Tunggu admin review (notifikasi via DM)
 
-**`/temprole-list`**
-- View all active temporary roles
-- Example: `/temprole-list` (all) or `/temprole-list user:@john` (filter)
-
-**`/temprole-extend`**
-- Extend the duration of temporary role
-- Example: `/temprole-extend user:@john role:@VIP additional_time:3d`
-
-### Features
-
-✅ **Auto-Removal**: Roles automatically removed when expired (checked every minute)
-✅ **Notifications**: DM sent 24h before, 1h before, and when role expires
-✅ **Multiple Roles**: Users can have unlimited temporary roles
-✅ **Smart Detection**: Skips if user already has permanent role
-✅ **Role Hierarchy**: Validates bot can manage the role
+### Daftar IB (Introducing Broker)
+1. Login dashboard → otomatis di-redirect ke `/daftar-ib`
+2. **Step 1:** Klik link affiliate Valetax untuk register
+3. **Step 2:** Setelah deposit minimum, konfirmasi di dashboard
+4. **Step 3:** Input nomor akun broker → bot verify ke Valetax API
+5. Verified → role IB otomatis di-assign + status terlihat di dashboard
 
 ---
 
-## For Developers/AI
+## For Admins
 
-### Phase 1 Complete ✅
+### Slash Commands (Admin Only)
 
-**Status**: Production ready
-**Commits**: 3 commits pushed to GitHub
-**Files**: 21 files created
+**Product:**
+- `/product-create <role> <name> <price> <duration> [desc]`
+- `/product-list`
+- `/product-delete <id>`
 
-#### What's Implemented:
+**Shop:**
+- `/shop-setup #channel`
 
-1. **Core Commands** (4 commands)
-   - `/temprole-add`, `/temprole-remove`, `/temprole-list`, `/temprole-extend`
+**Temporary Role:**
+- `/temprole-add <user> <role> <duration> [reason]`
+- `/temprole-remove <user> <role>`
+- `/temprole-extend <user> <role> <duration>`
+- `/temprole-list [user]`
 
-2. **Database** (PostgreSQL + Sequelize)
-   - TemporaryRole model
-   - ModerationLog model
-   - Auto-sync enabled
+**Transaction:**
+- `/transaction-process <order_id>`
+- `/transaction-cancel <order_id>`
 
-3. **Background Worker** (node-cron)
-   - Auto-removal every 1 minute
-   - Notifications every 5 minutes
+**Setup:**
+- `/email-setup #channel` — channel pendaftaran email
+- `/email-list [page]` — list email terdaftar
+- `/drive-setup add|list|enable|role` — Drive folder auto-share
+- `/myinfo-setup #channel` — channel My Info dengan tombol cek role
+- `/role-claim-setup #channel role1 [role2..role5] ...` — tombol claim role
 
-4. **Utilities**
-   - Duration parser (supports 1m, 1h, 1d, 7d, 1w)
-   - Embed builder (4 types)
+### Format Durasi
+- `1m` = 1 menit
+- `1h` = 1 jam
+- `1d` = 1 hari
+- `1w` = 1 minggu
+- `30d` = 30 hari
+- `1d12h30m` = 1 hari 12 jam 30 menit (kombinasi)
 
-5. **Documentation**
-   - README.md
-   - SETUP.md (complete guide)
-   - PROGRESS.md (development tracking)
+### Akses Admin Dashboard
+- **Bootstrap (sekali aja):** Tabel `admin_roles` kosong → semua user
+  dengan permission Discord ADMINISTRATOR di guild bisa login admin
+- **Setelah ada role:** Hanya user dengan role yang terdaftar di
+  Pengaturan Admin yang bisa login admin
+- **Cache role:** di-refresh tiap 1 jam atau saat login ulang
 
-### Next: Phase 2 (Templates & Bulk)
+### Dashboard Pages
+- **Dashboard** — overview revenue, pending review, recent transactions
+- **Transactions** — approve/reject payment, riwayat
+- **Products / Temp Roles / Emails** — CRUD penuh
+- **User Lookup** — cari user by Discord ID
+- **Audit Log** — semua action admin
+- **Discord Post** — composer untuk posting via bot
+- **Bot Status** — uptime, cron status, gateway state
+- **Backups** — backup manual, download, restore
+- **IB Settings / IB Accounts** — token Valetax, daftar akun IB verified
+- **Admin Roles / Email Roles** — config role-based access
 
-**Status**: Not started (0%)
-**Target**: 2 weeks
+---
 
-**Tasks**:
-1. Create RoleTemplate & TemplateRole models
-2. Implement 4 template commands
-3. Implement autocomplete
-4. Implement bulk operations
-5. Testing & docs
+## For Developers
 
-**Full details**: See [PROGRESS.md](PROGRESS.md)
-
-### Quick Commands
+### Quick Setup
 
 ```bash
-# Setup
 git clone https://github.com/Nabenns/qtassist5251.git
 cd qtassist5251
 npm install
+npm run build:web
 cp .env.example .env
-# Edit .env with your config
-npm run deploy
-npm start
-
-# Development
-npm run dev              # Auto-reload
-npm run deploy           # Deploy slash commands
-
-# Git workflow
-git add .
-git commit -m "Your message"
-git push origin main     # ALWAYS PUSH!
+# Edit .env dengan config kamu
+npm run deploy           # Register slash commands ke Discord
+npm run dev              # Auto-reload via nodemon
 ```
 
-### Files Structure
-
-```
-qtassist5251/
-├── PROGRESS.md          ← Development tracking (READ THIS FIRST)
-├── README.md            ← Project overview
-├── QUICK-START.md       ← This file
-├── .env.example         ← Environment template
-├── package.json         ← Dependencies
-├── src/
-│   ├── index.js         ← Entry point
-│   ├── deploy-commands.js
-│   ├── commands/temprole/    ← 4 commands ✅
-│   ├── events/               ← ready, interactionCreate ✅
-│   ├── database/models/      ← TemporaryRole, ModerationLog ✅
-│   ├── services/             ← cronService ✅
-│   └── utils/                ← parseDuration, embedBuilder ✅
-└── docs/
-    └── SETUP.md         ← Complete setup guide
-```
-
-### Environment Variables Required
+### Environment Variables (Required)
 
 ```env
 # Discord
-DISCORD_TOKEN=your_bot_token
-DISCORD_CLIENT_ID=your_client_id
-DISCORD_GUILD_ID=your_server_id
+DISCORD_TOKEN=...
+DISCORD_CLIENT_ID=...
+DISCORD_CLIENT_SECRET=...
+DISCORD_GUILD_ID=...
+DASHBOARD_BASE_URL=http://localhost:3000
 
 # Database
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=qtassist_bot
 DB_USER=postgres
-DB_PASSWORD=your_password
+DB_PASSWORD=...
 
-# Optional (for notifications)
-MOD_LOG_CHANNEL_ID=
-TEMP_ROLE_NOTIFICATION_CHANNEL_ID=
+# Web
+WEB_PORT=3000
+JWT_SECRET=<min 32 char random hex>
+
+# Payment
+PAYMENT_REVIEW_CHANNEL_ID=...
+PAYMENT_UPLOAD_CHANNEL_ID=...
+BANK_NAMES=BCA|Mandiri
+ACCOUNT_NUMBERS=1234567890|9876543210
+ACCOUNT_HOLDERS=QTrades Official|QTrades Backup
 ```
 
-### Key Decisions (DO NOT CHANGE)
+### Optional Env Vars
+- `GOOGLE_*` — Sheets sync + Drive backup
+- `GOOGLE_BACKUP_FOLDER_ID` — Drive folder untuk backup harian
+- `MOD_LOG_CHANNEL_ID`, `TEMP_ROLE_NOTIFICATION_CHANNEL_ID`
+- `QTRADES_LOGO_URL`
+- `VALETAX_MODE` — `live` untuk real API, kosong untuk mock
+- `VALETAX_BASE_URL`, `VALETAX_DEBUG`
+- `NODE_ENV=production` di server
 
-- ✅ Node.js (NOT Python)
+Lihat [.env.example](.env.example) untuk template lengkap.
+
+### Useful Commands
+
+```bash
+# Development
+npm run dev              # Auto-reload (nodemon)
+npm start                # Production start
+npm run deploy           # Register/refresh slash commands
+npm run build:web        # Build dashboard SPA ke web-admin/dist
+
+# Production
+pm2 logs qtassist        # Live log
+pm2 restart qtassist     # Restart bot
+
+# Database
+psql -U qtassist -d qtassist_bot                # Akses DB
+pg_dump qtassist_bot > backup.sql               # Manual backup
+
+# Generate secret
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+### File Structure (Singkat)
+
+```
+qtassist5251/
+├── src/
+│   ├── commands/           # Slash commands (admin/, product/, temprole/, transaction/, user/)
+│   ├── events/             # Discord event handlers
+│   ├── database/           # Models + migrations + Sequelize connection
+│   ├── services/           # Business logic + integrations
+│   ├── web/                # Express admin API
+│   ├── utils/              # parseDuration, embedBuilder, secrets
+│   └── index.js            # Entry point
+├── web-admin/              # React + Vite SPA dashboard
+├── deploy/                 # VPS deployment guide + nginx config
+├── docs/                   # Setup docs + plans/specs
+├── .env.example
+├── README.md               # Project overview lengkap
+├── PROGRESS.md             # Status fitur + perubahan terkini
+├── TODO.md                 # Task aktif
+└── QUICK-START.md          # File ini
+```
+
+Detail struktur lengkap di [README.md](README.md#project-structure).
+
+### Stack Decisions (Locked)
+- ✅ Node.js (BUKAN Python)
 - ✅ Discord.js v14
-- ✅ PostgreSQL (NOT SQLite/MongoDB)
-- ✅ Slash commands ONLY (NOT prefix like `!`)
-- ✅ Single server (NOT multi-server)
-- ✅ VPS hosting
-
-### Important Links
-
-- **Repository**: https://github.com/Nabenns/qtassist5251.git
-- **PRD**: [discord-bot-prd.md](../discord-bot-prd.md)
-- **Progress Tracking**: [PROGRESS.md](PROGRESS.md)
-- **Setup Guide**: [docs/SETUP.md](docs/SETUP.md)
+- ✅ PostgreSQL (BUKAN SQLite/MongoDB)
+- ✅ Slash commands ONLY (no prefix `!`)
+- ✅ Single guild deployment
+- ✅ React + Vite untuk dashboard (BUKAN Next.js)
+- ✅ Discord OAuth untuk login dashboard (BUKAN username/password)
+- ✅ VPS hosting (pm2 + nginx + certbot)
 
 ---
 
-## Testing Checklist
+## Production Deployment
 
-Before pushing new code:
+Lihat [deploy/README.md](deploy/README.md) — playbook lengkap untuk
+Ubuntu 22.04/24.04 dengan pm2 + nginx + Let's Encrypt + Drive backup.
 
-- [ ] Code runs without errors
-- [ ] Slash commands deployed (`npm run deploy`)
-- [ ] Commands work in Discord
-- [ ] Database updates correctly
-- [ ] Error handling works
-- [ ] Documentation updated
-- [ ] **Pushed to GitHub** ⚠️
+Ringkasan singkat:
+
+```bash
+# Server prep (Ubuntu)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs build-essential postgresql postgresql-client \
+                    nginx certbot python3-certbot-nginx
+sudo npm install -g pm2
+
+# Database
+sudo -u postgres psql -c "CREATE USER qtassist WITH PASSWORD 'changeme';"
+sudo -u postgres psql -c "CREATE DATABASE qtassist_bot OWNER qtassist;"
+
+# Deploy
+git clone https://github.com/Nabenns/qtassist5251.git
+cd qtassist5251
+npm install
+npm run build:web
+cp .env.example .env && nano .env
+
+npm run deploy
+pm2 start src/index.js --name qtassist
+pm2 save && pm2 startup
+
+# nginx + TLS
+sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/qtassist
+sudo ln -s /etc/nginx/sites-available/qtassist /etc/nginx/sites-enabled/
+sudo certbot --nginx -d your-domain.com
+```
 
 ---
 
-## Critical Reminders
+## Important Reminders
 
-1. **ALWAYS PUSH TO GITHUB** after changes
-2. Never commit `.env` file (use `.env.example`)
-3. Never commit credentials or tokens
-4. Test in development server first
-5. Read [PROGRESS.md](PROGRESS.md) for detailed tasks
-6. Follow existing code style
-7. Add error handling (try-catch)
-8. Update documentation
+- **Jangan commit `.env`** (already in `.gitignore`)
+- **Jangan commit `JWT_SECRET`** atau credential apapun
+- **Validasi user input** di route handler & command
+- **Test command** di guild dev sebelum push ke production
+- **Update slash command** via `npm run deploy` setiap nambah/ubah command
+- **Backup DB** sebelum migration major
 
 ---
 
-**Current Phase**: Phase 1 Complete ✅
-**Next Task**: Phase 2 - Role Templates & Bulk Operations
-**Repository**: https://github.com/Nabenns/qtassist5251.git
+## Related Docs
 
-**Last Updated**: 2026-05-09
+- [README.md](README.md) — Project overview, features, env vars, troubleshooting
+- [PROGRESS.md](PROGRESS.md) — Status fitur shipped + perubahan terkini
+- [TODO.md](TODO.md) — Task aktif & blocker
+- [deploy/README.md](deploy/README.md) — VPS deployment playbook
+- [CHANGELOG-MANUAL-PAYMENT.md](CHANGELOG-MANUAL-PAYMENT.md) — Migrasi Midtrans → manual transfer
+- [MIGRATION-MANUAL-PAYMENT.md](MIGRATION-MANUAL-PAYMENT.md) — Step-by-step migrasi
+- [MULTIPLE-ACCOUNTS-GUIDE.md](MULTIPLE-ACCOUNTS-GUIDE.md) — Setup multiple bank accounts
+- [docs/superpowers/](docs/superpowers/) — Plans + design specs
+
+---
+
+**Last Updated:** 2026-05-17

@@ -1,6 +1,6 @@
 # QTAssist Discord Bot
 
-Bot Discord untuk manajemen temporary role otomatis dengan sistem pembayaran manual dan integrasi Google Sheets real-time.
+Discord bot + admin web dashboard untuk QTrades. Mengelola temporary role berbayar dengan sistem pembayaran manual bank transfer, integrasi Google Sheets real-time, email entitlement bindings, dan Introducing Broker (IB) Valetax integration.
 
 ## Features
 
@@ -35,6 +35,30 @@ Bot Discord untuk manajemen temporary role otomatis dengan sistem pembayaran man
 - Role-based product association
 - Duration-based pricing
 
+### ✅ Email Entitlement & Google Drive Auto-Share
+- User mendaftarkan email → bot menyimpan binding email ↔ Discord user
+- Konfigurasi Google Drive folder yang otomatis di-share ke email user yang punya role tertentu
+- Akses dicabut otomatis saat role expire / dihapus
+
+### ✅ Web Admin Dashboard
+- Single-page React dashboard (Vite + Tailwind, brutalist theme)
+- Login via Discord OAuth (bukan username/password)
+- CRUD penuh: transaksi, produk, temprole, email, IB account, audit log
+- Discord post composer (admin posting message via dashboard)
+- Bot status, backup database (manual + jadwal harian), pengaturan admin
+- Server-Sent Events (SSE) untuk update real-time
+
+### ✅ IB Valetax Integration
+- User non-admin login dashboard → wizard 3-langkah `/daftar-ib` (register → deposit → submit)
+- Verifikasi otomatis nomor akun broker via Valetax API (mode `live`)
+- Daily volume tracking, auto grant/revoke role IB berdasarkan aktivitas
+- Token Valetax dipaste manual dari dashboard (sub-jam expiry)
+
+### ✅ Database Backup & Restore
+- Cron harian 03:00 WIB → `pg_dump` + gzip → upload ke Google Drive folder
+- Retention otomatis: 30 daily + 12 monthly
+- Backup/restore manual dari dashboard (download, restore, restore-from-upload)
+
 ## Commands
 
 ### 👨‍💼 Admin Commands
@@ -55,18 +79,28 @@ Bot Discord untuk manajemen temporary role otomatis dengan sistem pembayaran man
 - `/transaction-process` - Process transaksi manual (approve/reject payment)
 - `/transaction-cancel` - Cancel transaksi
 
+**Setup & Konfigurasi:**
+- `/email-setup` - Setup channel pendaftaran email
+- `/email-list` - Lihat semua email terdaftar (dengan pagination)
+- `/drive-setup` - Konfigurasi Google Drive folder untuk auto-share
+- `/myinfo-setup` - Setup channel "My Info" dengan tombol Cek Role & Riwayat Pembelian
+- `/role-claim-setup` - Post tombol claim role (max 5 role per message)
+
 ### 👤 User Commands
 - `/help` - Tampilkan semua command yang tersedia
-- `/my-roles` - Cek role temporary kamu dan kapan kadaluarsanya
-- `/my-purchases` - Lihat riwayat pembelian kamu
+- `/my-email` - Cek email terdaftar untuk akses konten
+
+> **Catatan:** Cek role temporary aktif dan riwayat pembelian dilakukan via tombol di channel **My Info** (di-setup admin pakai `/myinfo-setup`), bukan slash command.
+
+> **Catatan IB:** Pendaftaran IB tidak lagi via slash command. User non-admin login dashboard → otomatis diarahkan ke wizard `/daftar-ib`.
 
 ## Setup
 
 ### Prerequisites
-- Node.js v16.9.0 or higher
-- PostgreSQL database
-- Discord Bot Token
-- Google Service Account (for Sheets integration)
+- Node.js v18.0.0 or higher
+- PostgreSQL 12 atau lebih baru (`pg_dump` & `psql` harus tersedia di PATH untuk fitur backup/restore)
+- Discord Bot Token + OAuth2 Client (Client ID & Secret)
+- Google Service Account (untuk Sheets sync + Drive backup folder)
 
 ### Installation
 
@@ -81,26 +115,31 @@ cd qtassist5251
 npm install
 ```
 
-3. Configure environment variables:
+3. Build dashboard SPA:
+```bash
+npm run build:web
+```
+
+4. Configure environment variables:
 ```bash
 cp .env.example .env
 # Edit .env with your configuration
 ```
 
-4. Setup database:
+5. Setup database:
 ```bash
 # Create PostgreSQL database
 createdb qtassist_bot
 
-# Run migrations (auto-runs on first start)
+# Migrations auto-run on first start (sequelize sync + migration scripts)
 ```
 
-5. Deploy slash commands:
+6. Deploy slash commands:
 ```bash
 npm run deploy
 ```
 
-6. Start the bot:
+7. Start the bot:
 ```bash
 npm start
 ```
@@ -109,6 +148,8 @@ For development with auto-reload:
 ```bash
 npm run dev
 ```
+
+> **Production:** lihat [`deploy/README.md`](deploy/README.md) untuk panduan VPS lengkap (pm2 + nginx + certbot + Drive backup).
 
 ## Configuration
 
@@ -204,28 +245,29 @@ Bot akan display semua rekening ke user saat mereka klik tombol "Beli".
 
 ## Development Progress
 
-Current Status:
-- ✅ **Phase 1:** Core Temporary Role System (100% Complete)
-- ✅ **Phase 2:** Manual Payment System (100% Complete)
-- ✅ **Phase 3:** Google Sheets Integration (100% Complete)
-- ✅ **Phase 4:** Product & Shop Management (100% Complete)
-- ✅ **Phase 5:** User Commands & Help System (100% Complete)
+Status saat ini (2026-05-17):
+
+- ✅ **Core Temporary Role System** (auto-removal, notifikasi 24h/1h, multi-role per user)
+- ✅ **Manual Bank Transfer Payment** (multi-bank, upload bukti, admin approve/reject)
+- ✅ **Google Sheets Integration** (4 sheets, auto-sync 10 menit)
+- ✅ **Product & Shop Management** (slash command + tombol beli)
+- ✅ **Email Entitlement & Google Drive Auto-Share**
+- ✅ **Web Admin Dashboard** (Discord OAuth, brutalist UI, SSE realtime)
+- ✅ **IB Valetax Integration** (`/daftar-ib` wizard 3-step, daily volume tracking)
+- ✅ **Database Backup ke Google Drive** (cron 03:00 WIB, retention 30 daily + 12 monthly)
+  - ⚠️ Free Google account terkena `storageQuotaExceeded`. Lihat [TODO.md](TODO.md) — fix proper butuh pindah ke Google Workspace Shared Drive.
 
 ### Recent Updates
-- ✅ Manual bank transfer payment system dengan admin approval
+- ✅ Brutalist UI redesign (Space Grotesk + JetBrains Mono, zero radius, step shadow)
+- ✅ Migrasi pendaftaran IB dari Discord button → wizard dashboard `/daftar-ib`
+- ✅ Login dashboard pindah ke Discord OAuth (admin role di-cache dari Discord)
+- ✅ Manual bank transfer payment dengan admin approval
 - ✅ Multiple bank accounts support (pipe-separated config)
 - ✅ Direct image upload untuk payment proof
 - ✅ Google Sheets real-time sync (4 sheets: Active Transactions, History, Active Users, Analytics)
-- ✅ Analytics dengan pie chart dan top products by revenue
-- ✅ Active Users monitoring sheet dengan status indicators
-- ✅ `/help` command untuk list semua commands
-- ✅ `/my-roles` command untuk user cek role expiry
-- ✅ Full Indonesian localization
-- ✅ Cron jobs untuk auto-sync sheets setiap 10 menit
+- ✅ Database backup harian ke Google Drive + restore via dashboard
 
-## Database Schema
-
-See [DATABASE.md](./docs/DATABASE.md) for detailed schema documentation.
+Untuk task list aktif, lihat [TODO.md](TODO.md).
 
 ## Project Structure
 
@@ -233,39 +275,91 @@ See [DATABASE.md](./docs/DATABASE.md) for detailed schema documentation.
 qtassist5251/
 ├── src/
 │   ├── commands/
-│   │   ├── admin/           # Admin commands (products, temprole, transactions)
-│   │   └── user/            # User commands (help, my-roles, my-purchases)
+│   │   ├── admin/                    # drive-setup, email-setup, email-list,
+│   │   │                             # myinfo-setup, role-claim-setup
+│   │   ├── product/                  # create, list, delete, shop-setup
+│   │   ├── temprole/                 # add, remove, list, extend
+│   │   ├── transaction/              # process, cancel
+│   │   └── user/                     # help, my-email
 │   ├── events/
-│   │   ├── interactionCreateButton.js    # Button interaction handler
-│   │   ├── interactionCreateCommand.js   # Slash command handler
-│   │   ├── messageCreatePaymentProof.js  # Payment proof upload handler
-│   │   └── ready.js                      # Bot ready event
+│   │   ├── interactionCreate.js      # Dispatcher: slash, button, modal, autocomplete
+│   │   ├── messageCreatePaymentProof.js
+│   │   └── ready.js
 │   ├── database/
-│   │   ├── models/          # Sequelize models
-│   │   │   ├── Transaction.js
-│   │   │   ├── Product.js
-│   │   │   ├── TemporaryRole.js
-│   │   │   └── ModerationLog.js
-│   │   ├── migrations/      # Database migrations
-│   │   └── sequelize.js     # Database connection
+│   │   ├── models/                   # Transaction, Product, TemporaryRole,
+│   │   │                             # ModerationLog, EmailBinding, EmailRole,
+│   │   │                             # DriveConfig, AdminRole, IbConfig,
+│   │   │                             # IbAccount, IbVolumeRecord, ...
+│   │   ├── migrations/               # add-ib-tracking-columns, create-drive-configs,
+│   │   │                             # create-email-bindings, update-transaction-manual-payment
+│   │   └── sequelize.js              # PG connection
 │   ├── services/
-│   │   ├── googleSheetsService.js  # Google Sheets integration
-│   │   └── cronService.js          # Cron jobs & background tasks
-│   ├── utils/
-│   │   └── embedBuilder.js         # Discord embed templates
-│   └── index.js             # Main entry point
-├── .env.example             # Environment template
+│   │   ├── cronService.js            # Role expiry, reminders, sheet sync, backup
+│   │   ├── googleSheetsService.js    # 4-sheet sync
+│   │   ├── googleDriveService.js     # Drive share/revoke
+│   │   ├── backupService.js          # pg_dump → Drive
+│   │   ├── transactionService.js
+│   │   ├── valetaxService.js         # IB Valetax API client
+│   │   ├── ibService.js              # IB business rules
+│   │   ├── postingService.js         # Bot-driven Discord posts dari dashboard
+│   │   ├── discordRoleSync.js
+│   │   ├── emailEligibility.js
+│   │   ├── eventBus.js               # SSE source untuk dashboard /api/events
+│   │   └── cronStatus.js
+│   ├── utils/                        # parseDuration, embedBuilder, secrets
+│   ├── web/                          # Express admin API + SPA serve
+│   │   ├── server.js                 # Mount /api/*, helmet CSP, SPA fallback
+│   │   ├── auth.js, discordOAuth.js, middleware.js, seedAdmin.js
+│   │   └── routes/                   # auth, stats, audit, events, transactions,
+│   │                                 # products, temproles, emails, users, discord,
+│   │                                 # discordPosts, bot, backups, ib, adminRoles,
+│   │                                 # emailRoles
+│   ├── scripts/hash-password.js      # Helper bcrypt (legacy, dashboard pakai OAuth)
+│   ├── deploy-commands.js            # Slash command registration
+│   └── index.js                      # Entry: DB → bot → cron → sheets → web → login
+├── web-admin/                        # React SPA dashboard
+│   ├── src/
+│   │   ├── pages/                    # Dashboard, Transactions, Products, TempRoles,
+│   │   │                             # Emails, AuditLog, UserLookup, DiscordPost,
+│   │   │                             # BotStatus, Backups, IbSettings, IbAccounts,
+│   │   │                             # AdminRoles, EmailRoles, Login, MyEmail,
+│   │   │                             # daftar-ib/ (Step1/2/3 + StatusView)
+│   │   ├── components/               # Layout, ui/, ui/brutalist/
+│   │   ├── lib/                      # cn, realtime (SSE), notifications, theme
+│   │   ├── App.jsx, main.jsx, auth.jsx, api.js
+│   │   └── ...
+│   ├── public/                       # qtrades-logo.webp, theme-bootstrap.js
+│   ├── tailwind.config.js, vite.config.js, postcss.config.js
+│   └── package.json
+├── deploy/
+│   ├── README.md                     # VPS deployment playbook
+│   └── nginx.conf.example            # nginx + TLS reverse proxy
+├── docs/
+│   ├── SETUP.md                      # Older Phase 1 setup guide (legacy)
+│   └── superpowers/                  # Plans + design specs
+├── .env.example
 ├── package.json
 └── README.md
 ```
 
 ## Tech Stack
 
-- **Discord.js v14** - Discord bot framework
-- **PostgreSQL** - Database
-- **Sequelize** - ORM
-- **node-cron** - Background jobs
-- **googleapis** - Google Sheets API
+**Backend:**
+- **Discord.js v14** — Discord bot framework
+- **Express** + **helmet** + **express-rate-limit** — Admin API server
+- **PostgreSQL** + **Sequelize** — Database & ORM
+- **node-cron** — Background jobs
+- **googleapis** — Sheets + Drive API
+- **jsonwebtoken** + **bcrypt** — Session & password hashing
+- **Discord OAuth2** — Dashboard authentication
+
+**Frontend (web-admin):**
+- **React 18** + **Vite 5** — SPA framework
+- **Tailwind CSS 3** — Styling (brutalist theme: zero radius, step shadow)
+- **React Router 6** — Routing dengan `RequireAuth` / `RequireAdmin` guards
+- **Recharts** — Analytics charts
+- **Radix UI** — Dialog, dropdown, tooltip primitives
+- **Server-Sent Events** — Realtime updates dari bot (`/api/events`)
 
 ## Google Sheets Structure
 
@@ -328,11 +422,22 @@ Metrics & visualizations:
    - User muncul di "Active Users" (jika approved)
    - Analytics di-refresh
 
+### IB Registration Flow
+1. User non-admin login dashboard via Discord OAuth → otomatis di-redirect ke `/daftar-ib`
+2. **Step 1 — Register:** User klik link affiliate Valetax. Bot track `linkClickedAt`.
+3. **Step 2 — Deposit:** User konfirmasi sudah deposit minimum. Bot track `depositConfirmedAt`.
+4. **Step 3 — Submit:** User input nomor akun broker. Bot verify ke Valetax API:
+   - Match → simpan, set status verified, assign role IB
+   - Tidak match → user diminta cek ulang
+5. **Status view:** User verified bisa lihat volume harian + status role
+
 ### Auto-Sync & Monitoring
 - **Every 1 minute:** Check & remove expired roles
 - **Every 5 minutes:** Send expiry notifications (24h & 1h)
 - **Every 10 minutes:** Sync Active Users to Google Sheets
 - **Every 30 minutes:** Expire old pending transactions
+- **Every 1 hour:** Sample IB volume per akun verified, grant/revoke role IB
+- **Daily 03:00 WIB:** `pg_dump` + upload ke Google Drive (retention 30 daily + 12 monthly)
 
 ## Environment Variables
 
@@ -342,21 +447,29 @@ Lihat [.env.example](.env.example) untuk template lengkap.
 - `DISCORD_TOKEN` - Bot token dari Discord Developer Portal
 - `DISCORD_CLIENT_ID` - Application ID
 - `DISCORD_CLIENT_SECRET` - OAuth2 client secret (untuk login dashboard)
-- `DISCORD_GUILD_ID` - Server ID untuk testing
+- `DISCORD_GUILD_ID` - Server ID
 - `DASHBOARD_BASE_URL` - Base URL dashboard, contoh `https://qtrades.bensserver.cloud`. Discord redirect URI = `${DASHBOARD_BASE_URL}/api/auth/discord/callback`
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` - PostgreSQL config
 - `JWT_SECRET` - Min 32 karakter, untuk sign session token
+- `WEB_PORT` - Port admin web (default 3000)
 - `PAYMENT_REVIEW_CHANNEL_ID` - Channel untuk admin review payment
 - `PAYMENT_UPLOAD_CHANNEL_ID` - Channel untuk user upload bukti
 - `BANK_NAMES`, `ACCOUNT_NUMBERS`, `ACCOUNT_HOLDERS` - Bank account details (pipe-separated)
 
 **Optional:**
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL` - For Sheets integration
-- `GOOGLE_PRIVATE_KEY` - Service account private key
+- `NODE_ENV` - Set `production` di server (secure cookies + asset cache)
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL` - Untuk Sheets + Drive backup
+- `GOOGLE_PRIVATE_KEY` - Service account private key (literal `\n` accepted)
 - `GOOGLE_SPREADSHEET_ID` - Target spreadsheet ID
+- `GOOGLE_BACKUP_FOLDER_ID` - Drive folder ID untuk backup harian
 - `MOD_LOG_CHANNEL_ID` - Channel untuk moderation logs
 - `TEMP_ROLE_NOTIFICATION_CHANNEL_ID` - Channel untuk role expiry notifications
 - `QTRADES_LOGO_URL` - Logo untuk embeds
+- `SESSION_COOKIE_NAME` - Default `qtassist_session`
+- `VALETAX_MODE` - Kosong = mock, `live` = real API
+- `VALETAX_BASE_URL` - Base URL Valetax API
+- `VALETAX_DEBUG` - `true` untuk verbose log (jangan aktifkan di production, log PII)
+- `COOKIE_ENCRYPTION_KEY` - Fallback ke `JWT_SECRET` kalau kosong
 
 ## Troubleshooting
 
@@ -370,21 +483,35 @@ Lihat [.env.example](.env.example) untuk template lengkap.
 - Atau restart bot (commands auto-register saat start)
 - Cek `DISCORD_CLIENT_ID` dan `DISCORD_GUILD_ID` di `.env`
 
+### Login dashboard error `bot_not_ready`
+- Bot belum login ke Discord saat user OAuth callback masuk
+- Tunggu bot fully online (cek log `Logged in as ...`)
+- Pastikan user sudah join guild Discord
+
 ### Google Sheets tidak sync
 - Pastikan spreadsheet sudah di-share dengan service account email
 - Cek `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY`, dan `GOOGLE_SPREADSHEET_ID`
 - Pastikan Google Sheets API sudah enabled di Google Cloud Console
 - Lihat logs untuk error messages
 
+### Backup error `storageQuotaExceeded`
+- Service account di project Cloud standar tidak punya quota Drive
+- Fix proper: pindah ke Google Workspace **Shared Drive**, lihat [TODO.md](TODO.md)
+
 ### Payment upload tidak work
 - Cek `PAYMENT_UPLOAD_CHANNEL_ID` ada dan bot punya akses
 - Cek `PAYMENT_REVIEW_CHANNEL_ID` untuk admin review
 - Pastikan bot punya permission: Manage Channels, Send Messages, Attach Files
 
+### IB verify selalu gagal
+- Cek `VALETAX_MODE=live` dan token Valetax di-paste fresh dari dashboard "Pengaturan IB"
+- Aktifkan `VALETAX_DEBUG=true`, restart bot, lihat `LOOKUP-SAMPLE-KEYS` log
+- Bandingkan key yang muncul dengan `extractAccountNumber` candidate di `src/services/valetaxService.js`
+
 ### Database error
 - Pastikan PostgreSQL running
 - Cek database credentials di `.env`
-- Jalankan migrations jika ada: `node src/database/migrations/update-transaction-manual-payment.js`
+- Migration auto-run via Sequelize sync; manual: jalankan script di `src/database/migrations/`
 
 ## Contributing
 
@@ -400,6 +527,4 @@ QTrades Development Team
 
 ---
 
-**Built with Discord.js v14 | PostgreSQL | Google Sheets API**
-
-🤖 Generated with Claude Code
+**Built with Discord.js v14 | PostgreSQL | Express | React | Tailwind**
