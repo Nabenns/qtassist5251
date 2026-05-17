@@ -272,9 +272,9 @@ export default function IbSettings() {
                 <div>
                   <div className="font-medium">Aktifkan sistem IB</div>
                   <div className="text-xs text-muted-fg">
-                    Saat dimatikan, tombol pendaftaran tetap muncul di Discord
-                    tapi bot menolak menerima pendaftaran baru dan cron
-                    verifikasi tidak jalan.
+                    Saat dimatikan, halaman /daftar-ib di dashboard menolak
+                    pendaftaran baru dan cron verifikasi tidak jalan. Akun
+                    yang sudah verified tidak terganggu.
                   </div>
                 </div>
               </label>
@@ -291,7 +291,7 @@ export default function IbSettings() {
                     ))}
                   </Select>
                 </FormField>
-                <FormField label="Channel pendaftaran (auto-isi setelah /ib-setup)">
+                <FormField label="Channel pendaftaran (legacy, opsional)">
                   <Select
                     value={registrationChannelId}
                     onChange={(e) => setRegistrationChannelId(e.target.value)}
