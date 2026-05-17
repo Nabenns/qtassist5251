@@ -13,7 +13,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const { Transaction } = require('../../database/models');
-const { checkLouvinStatus, LouvinError } = require('../../services/louvinService');
+const { checkLouvinStatus } = require('../../services/louvinService');
 const { approveTransaction } = require('../../services/transactionService');
 const { emitEvent } = require('../../services/eventBus');
 
