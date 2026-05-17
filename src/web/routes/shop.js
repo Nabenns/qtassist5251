@@ -143,13 +143,14 @@ function buildRouter({ getDiscordClient }) {
         return res.status(503).json({ error: 'louvin_disabled' });
       }
 
-      const { productId, paymentMethod } = req.body || {};
+      const { productId, paymentMethod: rawPaymentMethod } = req.body || {};
       if (!Number.isFinite(Number(productId))) {
         return res.status(400).json({ error: 'invalid_product_id' });
       }
-      if (typeof paymentMethod !== 'string' || !paymentMethod.trim()) {
+      if (typeof rawPaymentMethod !== 'string' || !rawPaymentMethod.trim()) {
         return res.status(400).json({ error: 'invalid_payment_method' });
       }
+      const paymentMethod = rawPaymentMethod.trim();
 
       const product = await Product.findByPk(Number(productId));
       if (!product || !product.isActive) {
@@ -229,7 +230,7 @@ function buildRouter({ getDiscordClient }) {
       } catch (err) {
         await transaction.update({ status: 'cancelled', rejectionReason: 'louvin_create_failed' });
         if (err instanceof LouvinError) {
-          return res.status(502).json({ error: 'gateway_error', code: err.code, details: err.message });
+          return res.status(502).json({ error: 'gateway_error', code: err.code, message: err.message });
         }
         throw err;
       }
@@ -238,6 +239,11 @@ function buildRouter({ getDiscordClient }) {
       // qr_string for QRIS/GoPay, va_number for VA, deeplink_url for ShopeePay
       const paymentNumber = lvPay.qr_string || lvPay.va_number || lvPay.deeplink_url || lvPay.payment_number || null;
 
+      // Partial-failure window: if this update fails, the local row stays
+      // pending with louvin_transaction_id=NULL while Louvin holds an active
+      // transaction. The webhook handler reconciles via `reference` (orderId)
+      // so the user still gets credit if they pay. Cron will eventually
+      // mark the row expired if no webhook arrives.
       await transaction.update({
         louvinTransactionId: lvTrx.id,
         louvinFee: lvTrx.fee,
@@ -254,7 +260,7 @@ function buildRouter({ getDiscordClient }) {
         totalPayment: lvTrx.amount,
         fee: lvTrx.fee,
         amount: product.price,
-        expiresAt: lvPay.expired_at
+        expiresAt: transaction.louvinExpiredAt
       });
     } catch (error) {
       console.error('POST /api/shop/checkout error:', error);
