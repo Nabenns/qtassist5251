@@ -319,7 +319,11 @@ function buildRouter({ getDiscordClient }) {
       try {
         lv = await checkLouvinStatus(trx.louvinTransactionId);
       } catch (err) {
-        return res.status(502).json({ error: 'gateway_error', message: err.message });
+        return res.status(502).json({
+          error: 'gateway_error',
+          code: err.code || 'unknown',
+          message: err.message
+        });
       }
 
       // Apply state changes — but DO NOT call approveTransaction here
@@ -347,7 +351,7 @@ function buildRouter({ getDiscordClient }) {
   // GET /api/shop/my-transactions — paginated history.
   router.get('/my-transactions', async (req, res) => {
     try {
-      const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
       const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
 
       const { rows, count } = await Transaction.findAndCountAll({
