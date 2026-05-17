@@ -33,9 +33,9 @@ const IbAccount = sequelize.define('IbAccount', {
   },
   brokerAccountNumber: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
     field: 'broker_account_number',
-    comment: 'Account number on the broker (Valetax)'
+    comment: 'Account number on the broker (Valetax). Nullable: wizard creates the row in step 1 before user has provided the number in step 3.'
   },
   status: {
     type: DataTypes.ENUM('pending', 'verified', 'failed', 'removed'),
@@ -105,6 +105,18 @@ const IbAccount = sequelize.define('IbAccount', {
   notes: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  linkClickedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'link_clicked_at',
+    comment: 'When user clicked the Valetax registration link from /daftar-ib step 1'
+  },
+  depositConfirmedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'deposit_confirmed_at',
+    comment: 'When user confirmed deposit in /daftar-ib step 2'
   },
   createdAt: {
     type: DataTypes.DATE,
