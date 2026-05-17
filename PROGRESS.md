@@ -1,7 +1,7 @@
 # Development Progress - QTAssist Discord Bot
 
 **Repository:** https://github.com/Nabenns/qtassist5251.git
-**Last Updated:** 2026-05-17
+**Last Updated:** 2026-05-17 (web shop + Louvin)
 
 > **Note:** Dokumen ini adalah ringkasan historis fitur yang sudah ship.
 > Untuk task aktif & blocker, lihat [TODO.md](TODO.md). Untuk overview
@@ -131,6 +131,19 @@ Auto-sync tiap 10 menit. Format tanggal Indonesia (WIB).
 quota Drive → `storageQuotaExceeded`. Fix proper: pindah ke Google
 Workspace **Shared Drive**. Detail di [TODO.md](TODO.md).
 
+### ✅ Web Shop & Louvin Payment Gateway
+**Status:** Live since 2026-05-17
+
+- Page `/shop` untuk user non-admin (Discord OAuth session)
+- 7 metode pembayaran via Louvin (QRIS, GoPay, ShopeePay, BNI/BRI/Permata/CIMB VA)
+- Admin configurable payment methods per product (JSONB array)
+- Webhook handler dengan path token + verify ke Louvin (defense in depth)
+- Reuse `transactionService.approveTransaction()` untuk role grant
+- Cron auto-expire pending transactions tiap 5 menit
+- Page `/my-purchases` gabung manual_bank + louvin history
+- Coexist dengan Discord manual bank transfer (existing)
+- Feature flag `LOUVIN_ENABLED=false` default — safe rollout
+
 ### ✅ IB Valetax Integration
 **Status:** Live (Phase 2 wired ke API live, wizard dashboard 2026-05-17)
 
@@ -164,6 +177,7 @@ Sebelumnya pendaftaran IB pakai slash command `/ib-setup` + tombol
 
 | Date | Change |
 |---|---|
+| 2026-05-17 | Web shop with Louvin payment gateway shipped (page /shop, /my-purchases, webhook handler) |
 | 2026-05-17 | IB registration migrated dari Discord button ke wizard dashboard `/daftar-ib` |
 | 2026-05-17 | TIMESTAMP→TIMESTAMPTZ drift detection + auto-upgrade |
 | 2026-05-17 | `/ib-setup` slash command + `ib_register` button removed |
