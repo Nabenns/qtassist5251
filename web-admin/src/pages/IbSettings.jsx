@@ -189,6 +189,16 @@ export default function IbSettings() {
     if (!serverId) return;
     setTesting(true);
     try {
+      // If user typed a fresh token but hasn't saved it yet, save first.
+      // Otherwise the backend would test whatever is currently in DB
+      // (potentially nothing or stale), not the new input.
+      if (cookieInput.trim()) {
+        await api.put('/api/ib/config', {
+          serverId,
+          cookie: cookieInput.trim()
+        });
+        setCookieInput('');
+      }
       const res = await api.post('/api/ib/config/test-cookie', { serverId });
       if (res.ok) {
         toast.success('Token valid');
