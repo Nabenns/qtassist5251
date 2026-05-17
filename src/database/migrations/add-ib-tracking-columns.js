@@ -18,21 +18,21 @@ const { sequelize } = require('../sequelize');
 
 async function migrate() {
   const queryInterface = sequelize.getQueryInterface();
-  let tableDescription;
 
+  let tableDescription;
   try {
     tableDescription = await queryInterface.describeTable('ib_accounts');
   } catch (err) {
     console.error('❌ Could not describe ib_accounts table:', err.message);
     console.error('   Make sure DATABASE_URL or DB_* env vars are set and the table exists.');
-    await sequelize.close();
-    process.exit(1);
+    throw err;
   }
 
-  // Add link_clicked_at if missing
+  // Add link_clicked_at if missing.
+  // TIMESTAMP WITH TIME ZONE matches what Sequelize generates for DataTypes.DATE.
   if (!tableDescription.link_clicked_at) {
     await queryInterface.addColumn('ib_accounts', 'link_clicked_at', {
-      type: 'TIMESTAMP',
+      type: 'TIMESTAMP WITH TIME ZONE',
       allowNull: true
     });
     console.log('✅ Added column link_clicked_at to ib_accounts');
@@ -40,10 +40,10 @@ async function migrate() {
     console.log('ℹ️  Column link_clicked_at already exists, skipping');
   }
 
-  // Add deposit_confirmed_at if missing
+  // Add deposit_confirmed_at if missing.
   if (!tableDescription.deposit_confirmed_at) {
     await queryInterface.addColumn('ib_accounts', 'deposit_confirmed_at', {
-      type: 'TIMESTAMP',
+      type: 'TIMESTAMP WITH TIME ZONE',
       allowNull: true
     });
     console.log('✅ Added column deposit_confirmed_at to ib_accounts');
@@ -51,7 +51,7 @@ async function migrate() {
     console.log('ℹ️  Column deposit_confirmed_at already exists, skipping');
   }
 
-  // Relax broker_account_number to nullable if currently NOT NULL
+  // Relax broker_account_number to nullable if currently NOT NULL.
   const brokerCol = tableDescription.broker_account_number;
   if (brokerCol && brokerCol.allowNull === false) {
     await queryInterface.changeColumn('ib_accounts', 'broker_account_number', {
@@ -66,10 +66,15 @@ async function migrate() {
   }
 
   console.log('✅ Migration complete');
-  await sequelize.close();
 }
 
-migrate().catch((err) => {
-  console.error('❌ Migration failed:', err);
-  process.exit(1);
-});
+(async () => {
+  try {
+    await migrate();
+  } catch (err) {
+    console.error('❌ Migration failed:', err);
+    process.exitCode = 1;
+  } finally {
+    await sequelize.close();
+  }
+})();
