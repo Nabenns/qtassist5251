@@ -108,7 +108,7 @@ function buildRouter({ getDiscordClient }) {
         });
       }
       if (!account.linkClickedAt) {
-        return res.status(409).json({
+        return res.status(412).json({
           error: 'step_1_incomplete',
           message: 'Selesaikan step 1 (daftar Valetax) dulu.'
         });
@@ -152,8 +152,12 @@ function buildRouter({ getDiscordClient }) {
       // have a brokerAccountNumber (mid-retry users from before this feature
       // landed) so they can still submit retries without first running the
       // wizard backfill.
+      // Prefer the wizard pre-account row (broker_account_number IS NULL) when
+      // both a legacy real row and a pre-account row coexist. ORDER BY
+      // broker_account_number NULLS FIRST surfaces the pre-account row first.
       const existing = await IbAccount.findOne({
-        where: { serverId, userId: req.session.discordId }
+        where: { serverId, userId: req.session.discordId },
+        order: [['brokerAccountNumber', 'ASC NULLS FIRST']]
       });
       const isLegacyMidFlow = existing && existing.brokerAccountNumber !== null;
       if (!isLegacyMidFlow) {
