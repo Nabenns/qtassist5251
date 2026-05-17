@@ -11,10 +11,48 @@
  *   node src/database/migrations/add-ib-tracking-columns.js
  *
  * Then restart the bot.
+ *
+ * Recovery note: if a previous version of this script created the columns
+ * as plain TIMESTAMP (no time zone), the alignment block below will detect
+ * the drift and ALTER them to TIMESTAMP WITH TIME ZONE so they match what
+ * Sequelize's DataTypes.DATE produces.
  */
 
 require('dotenv').config();
 const { sequelize } = require('../sequelize');
+
+const TZ_TYPE = 'TIMESTAMP WITH TIME ZONE';
+
+/**
+ * Postgres reports `TIMESTAMP WITH TIME ZONE` as `TIMESTAMP WITH TIME ZONE`
+ * via Sequelize's describeTable, but plain `TIMESTAMP` shows as `TIMESTAMP`.
+ * Treat anything that doesn't include "WITH TIME ZONE" as drift.
+ */
+function isTimestampWithTimezone(colType) {
+  if (!colType) return false;
+  return /WITH TIME ZONE/i.test(colType);
+}
+
+async function ensureTimestampTzColumn(queryInterface, columnName, tableDescription) {
+  const col = tableDescription[columnName];
+  if (!col) {
+    await queryInterface.addColumn('ib_accounts', columnName, {
+      type: TZ_TYPE,
+      allowNull: true
+    });
+    console.log(`✅ Added column ${columnName} to ib_accounts`);
+    return;
+  }
+  if (!isTimestampWithTimezone(col.type)) {
+    // Use raw SQL via the underlying connection so the timezone semantics are preserved.
+    await sequelize.query(
+      `ALTER TABLE ib_accounts ALTER COLUMN ${columnName} TYPE TIMESTAMP WITH TIME ZONE USING ${columnName} AT TIME ZONE 'UTC'`
+    );
+    console.log(`✅ Upgraded ${columnName} from ${col.type} to TIMESTAMP WITH TIME ZONE`);
+    return;
+  }
+  console.log(`ℹ️  Column ${columnName} already TIMESTAMP WITH TIME ZONE, skipping`);
+}
 
 async function migrate() {
   const queryInterface = sequelize.getQueryInterface();
@@ -28,28 +66,8 @@ async function migrate() {
     throw err;
   }
 
-  // Add link_clicked_at if missing.
-  // TIMESTAMP WITH TIME ZONE matches what Sequelize generates for DataTypes.DATE.
-  if (!tableDescription.link_clicked_at) {
-    await queryInterface.addColumn('ib_accounts', 'link_clicked_at', {
-      type: 'TIMESTAMP WITH TIME ZONE',
-      allowNull: true
-    });
-    console.log('✅ Added column link_clicked_at to ib_accounts');
-  } else {
-    console.log('ℹ️  Column link_clicked_at already exists, skipping');
-  }
-
-  // Add deposit_confirmed_at if missing.
-  if (!tableDescription.deposit_confirmed_at) {
-    await queryInterface.addColumn('ib_accounts', 'deposit_confirmed_at', {
-      type: 'TIMESTAMP WITH TIME ZONE',
-      allowNull: true
-    });
-    console.log('✅ Added column deposit_confirmed_at to ib_accounts');
-  } else {
-    console.log('ℹ️  Column deposit_confirmed_at already exists, skipping');
-  }
+  await ensureTimestampTzColumn(queryInterface, 'link_clicked_at', tableDescription);
+  await ensureTimestampTzColumn(queryInterface, 'deposit_confirmed_at', tableDescription);
 
   // Relax broker_account_number to nullable if currently NOT NULL.
   const brokerCol = tableDescription.broker_account_number;
