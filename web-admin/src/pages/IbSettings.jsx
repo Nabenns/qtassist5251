@@ -32,6 +32,7 @@ export default function IbSettings() {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingCookie, setSavingCookie] = useState(false);
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -156,6 +157,31 @@ export default function IbSettings() {
       });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSaveCookie() {
+    if (!cookieInput.trim()) {
+      toast.warning('Token kosong', {
+        description: 'Paste token Valetax dulu sebelum simpan.'
+      });
+      return;
+    }
+    setSavingCookie(true);
+    try {
+      const res = await api.put('/api/ib/config', {
+        serverId,
+        cookie: cookieInput.trim()
+      });
+      setConfig(res.config);
+      setCookieInput('');
+      toast.success('Token tersimpan');
+    } catch (err) {
+      toast.error('Gagal simpan token', {
+        description: err instanceof ApiError ? err.message : 'Coba lagi.'
+      });
+    } finally {
+      setSavingCookie(false);
     }
   }
 
@@ -397,6 +423,15 @@ export default function IbSettings() {
               </FormField>
 
               <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  leadingIcon={Save}
+                  onClick={handleSaveCookie}
+                  loading={savingCookie}
+                  disabled={!cookieInput.trim()}
+                >
+                  Simpan token
+                </Button>
                 <Button
                   size="sm"
                   variant="secondary"
