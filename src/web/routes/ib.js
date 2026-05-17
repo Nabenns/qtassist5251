@@ -64,6 +64,35 @@ function buildRouter({ getDiscordClient }) {
     }
   });
 
+  router.post('/my-account/track-link-clicked', requireAuth, async (req, res) => {
+    try {
+      const serverId = String(process.env.DISCORD_GUILD_ID || '');
+      if (!serverId) return res.status(400).json({ error: 'missing_server_id' });
+
+      const [account] = await IbAccount.findOrCreate({
+        where: { serverId, userId: req.session.discordId },
+        defaults: {
+          serverId,
+          userId: req.session.discordId,
+          status: 'pending',
+          brokerAccountNumber: null,
+          retryCount: 0
+        }
+      });
+
+      // Idempotent: only set if currently null
+      if (!account.linkClickedAt) {
+        account.linkClickedAt = new Date();
+        await account.save();
+      }
+
+      return res.json({ ok: true, account: serializeAccount(account) });
+    } catch (error) {
+      console.error('POST /api/ib/my-account/track-link-clicked error:', error);
+      return res.status(500).json({ error: 'internal_error', message: error.message });
+    }
+  });
+
   router.post('/my-account', requireAuth, async (req, res) => {
     try {
       const serverId = String(process.env.DISCORD_GUILD_ID || '');
