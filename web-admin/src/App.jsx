@@ -19,6 +19,7 @@ import EmailRoles from './pages/EmailRoles.jsx';
 import DaftarIb from './pages/DaftarIb.jsx';
 import MyEmail from './pages/MyEmail.jsx';
 import Shop from './pages/Shop.jsx';
+import Checkout from './pages/Checkout.jsx';
 
 function FullPageMessage({ children }) {
   return (
@@ -110,6 +111,7 @@ export default function App() {
       <Route path="/daftar-ib" element={<UserShell><DaftarIb /></UserShell>} />
       <Route path="/my-email" element={<UserShell><MyEmail /></UserShell>} />
       <Route path="/shop" element={<UserShell><Shop /></UserShell>} />
+      <Route path="/shop/checkout/:orderId" element={<UserShell><Checkout /></UserShell>} />
 
       {/* Admin-only routes */}
       <Route path="/" element={<AdminShell><Home /></AdminShell>} />
