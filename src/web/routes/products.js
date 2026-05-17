@@ -2,6 +2,24 @@ const express = require('express');
 const { parseDuration } = require('../../utils/parseDuration');
 const { Product } = require('../../database/models');
 const { requireAdmin } = require('../middleware');
+const { clearProductCache } = require('./shop');
+
+const VALID_LOUVIN_METHODS = ['qris', 'gopay', 'shopeepay', 'bni_va', 'bri_va', 'permata_va', 'cimb_niaga_va'];
+
+/**
+ * Validate paymentMethods array. Returns cleaned array (deduped, valid only)
+ * or null if invalid (not array, empty, or contains unknown values).
+ */
+function validatePaymentMethods(value) {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const cleaned = [];
+  for (const m of value) {
+    if (typeof m !== 'string') return null;
+    if (!VALID_LOUVIN_METHODS.includes(m)) return null;
+    if (!cleaned.includes(m)) cleaned.push(m);
+  }
+  return cleaned.length > 0 ? cleaned : null;
+}
 
 function buildRouter({ getDiscordClient }) {
   const router = express.Router();
@@ -25,6 +43,7 @@ function buildRouter({ getDiscordClient }) {
           price: p.price,
           duration: String(p.duration),
           isActive: p.isActive,
+          paymentMethods: Array.isArray(p.paymentMethods) ? p.paymentMethods : ['qris'],
           createdAt: p.createdAt,
           updatedAt: p.updatedAt
         }))
@@ -64,6 +83,14 @@ function buildRouter({ getDiscordClient }) {
         }
       }
 
+      // Validate paymentMethods (optional, default ['qris'])
+      let paymentMethods = ['qris'];
+      if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'paymentMethods')) {
+        const pm = validatePaymentMethods(req.body.paymentMethods);
+        if (!pm) return res.status(400).json({ error: 'invalid_payment_methods' });
+        paymentMethods = pm;
+      }
+
       // Best-effort validation that the role exists in the guild and the bot
       // can assign it. Failure here is informative, not fatal — the row is
       // still created so the admin can fix the hierarchy and try again.
@@ -101,8 +128,11 @@ function buildRouter({ getDiscordClient }) {
         description: typeof description === 'string' ? description : null,
         price: Math.round(priceNum),
         duration: String(Math.round(durationMs)),
-        isActive: isActive === false ? false : true
+        isActive: isActive === false ? false : true,
+        paymentMethods
       });
+
+      clearProductCache(product.serverId);
 
       return res.status(201).json({
         ok: true,
@@ -116,6 +146,7 @@ function buildRouter({ getDiscordClient }) {
           price: product.price,
           duration: String(product.duration),
           isActive: product.isActive,
+          paymentMethods: Array.isArray(product.paymentMethods) ? product.paymentMethods : ['qris'],
           createdAt: product.createdAt
         }
       });
@@ -137,7 +168,7 @@ function buildRouter({ getDiscordClient }) {
         return res.status(404).json({ error: 'not_found' });
       }
 
-      const allowedFields = ['name', 'description', 'price', 'isActive'];
+      const allowedFields = ['name', 'description', 'price', 'isActive', 'paymentMethods'];
       const updates = {};
       for (const key of allowedFields) {
         if (req.body && Object.prototype.hasOwnProperty.call(req.body, key)) {
@@ -161,7 +192,15 @@ function buildRouter({ getDiscordClient }) {
         return res.status(400).json({ error: 'invalid_name' });
       }
 
+      if (Object.prototype.hasOwnProperty.call(updates, 'paymentMethods')) {
+        const pm = validatePaymentMethods(updates.paymentMethods);
+        if (!pm) return res.status(400).json({ error: 'invalid_payment_methods' });
+        updates.paymentMethods = pm;
+      }
+
       await product.update(updates);
+
+      clearProductCache(product.serverId);
 
       return res.json({
         ok: true,
@@ -174,6 +213,7 @@ function buildRouter({ getDiscordClient }) {
           price: product.price,
           duration: String(product.duration),
           isActive: product.isActive,
+          paymentMethods: Array.isArray(product.paymentMethods) ? product.paymentMethods : ['qris'],
           updatedAt: product.updatedAt
         }
       });
@@ -193,7 +233,9 @@ function buildRouter({ getDiscordClient }) {
       if (!product) {
         return res.status(404).json({ error: 'not_found' });
       }
+      const serverId = product.serverId;
       await product.destroy();
+      clearProductCache(serverId);
       return res.json({ ok: true });
     } catch (error) {
       console.error('DELETE /api/products/:id error:', error);
