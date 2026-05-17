@@ -72,6 +72,54 @@ const Transaction = sequelize.define('Transaction', {
     allowNull: true,
     field: 'paid_at',
     comment: 'When payment was approved'
+  },
+  paymentChannel: {
+    type: DataTypes.STRING(32),
+    allowNull: false,
+    defaultValue: 'manual_bank',
+    field: 'payment_channel',
+    validate: {
+      isIn: {
+        args: [['manual_bank', 'louvin']],
+        msg: 'paymentChannel must be manual_bank or louvin'
+      }
+    }
+  },
+  louvinTransactionId: {
+    type: DataTypes.STRING(64),
+    allowNull: true,
+    field: 'louvin_transaction_id',
+    comment: 'UUID dari Louvin /create-transaction response'
+  },
+  louvinPaymentType: {
+    type: DataTypes.STRING(32),
+    allowNull: true,
+    field: 'louvin_payment_type',
+    comment: 'qris, gopay, bni_va, dst'
+  },
+  louvinFee: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'louvin_fee',
+    comment: 'Fee Louvin (IDR)'
+  },
+  louvinTotalPayment: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'louvin_total_payment',
+    comment: 'Total yang dibayar customer (amount + fee)'
+  },
+  louvinPaymentNumber: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    field: 'louvin_payment_number',
+    comment: 'qr_string atau va_number untuk display'
+  },
+  louvinExpiredAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'louvin_expired_at',
+    comment: 'Expiry timestamp dari Louvin'
   }
 }, {
   tableName: 'transactions',
@@ -88,6 +136,9 @@ const Transaction = sequelize.define('Transaction', {
     },
     {
       fields: ['status']
+    },
+    {
+      fields: ['payment_channel']
     }
   ]
 });
