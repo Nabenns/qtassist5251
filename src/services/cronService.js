@@ -297,6 +297,35 @@ async function checkExpiredTransactions() {
 }
 
 /**
+ * Mark pending Louvin transactions stale-past-expiry as 'expired'.
+ * Idempotent. Called every 5 minutes.
+ */
+async function expirePendingLouvinTransactions() {
+  const now = new Date();
+  const stale = await Transaction.findAll({
+    where: {
+      paymentChannel: 'louvin',
+      status: 'pending',
+      louvinExpiredAt: { [Op.lt]: now }
+    }
+  });
+
+  if (stale.length === 0) return { count: 0 };
+
+  console.log(`🔍 Found ${stale.length} expired Louvin transaction(s). Marking expired...`);
+  for (const trx of stale) {
+    await trx.update({ status: 'expired' });
+    emitEvent('transaction.expired', {
+      orderId: trx.orderId,
+      userId: trx.userId,
+      serverId: trx.serverId,
+      reason: 'louvin_expired'
+    });
+  }
+  return { count: stale.length };
+}
+
+/**
  * Start all cron jobs
  */
 function startCronJobs(discordClient) {
@@ -312,6 +341,12 @@ function startCronJobs(discordClient) {
 
   // Check expired transactions every 30 minutes
   cron.schedule('*/30 * * * *', trackedCron('checkExpiredTransactions', checkExpiredTransactions));
+
+  // Expire pending Louvin transactions every 5 minutes (based on louvin_expired_at)
+  cron.schedule('*/5 * * * *', trackedCron('expirePendingLouvinTransactions', async () => {
+    return await expirePendingLouvinTransactions();
+  }));
+  console.log('✅ Cron: expirePendingLouvinTransactions every 5 min');
 
   // Sync active users to Google Sheets every 10 minutes
   cron.schedule(
