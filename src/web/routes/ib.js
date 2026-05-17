@@ -93,6 +93,40 @@ function buildRouter({ getDiscordClient }) {
     }
   });
 
+  router.post('/my-account/track-deposit-confirmed', requireAuth, async (req, res) => {
+    try {
+      const serverId = String(process.env.DISCORD_GUILD_ID || '');
+      if (!serverId) return res.status(400).json({ error: 'missing_server_id' });
+
+      const account = await IbAccount.findOne({
+        where: { serverId, userId: req.session.discordId, brokerAccountNumber: null }
+      });
+      if (!account) {
+        return res.status(404).json({
+          error: 'no_account',
+          message: 'Selesaikan step 1 dulu sebelum konfirmasi deposit.'
+        });
+      }
+      if (!account.linkClickedAt) {
+        return res.status(409).json({
+          error: 'step_1_incomplete',
+          message: 'Selesaikan step 1 (daftar Valetax) dulu.'
+        });
+      }
+
+      // Idempotent: only set if currently null
+      if (!account.depositConfirmedAt) {
+        account.depositConfirmedAt = new Date();
+        await account.save();
+      }
+
+      return res.json({ ok: true, account: serializeAccount(account) });
+    } catch (error) {
+      console.error('POST /api/ib/my-account/track-deposit-confirmed error:', error);
+      return res.status(500).json({ error: 'internal_error', message: error.message });
+    }
+  });
+
   router.post('/my-account', requireAuth, async (req, res) => {
     try {
       const serverId = String(process.env.DISCORD_GUILD_ID || '');
